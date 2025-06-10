@@ -17,8 +17,6 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, "¡Hola! Soy tu bot en TypeScript 🚀");
 });
  */
-
-
 import "./server";
 import { setupStartCommand } from "./bot/commands/start";
 import { setupFormFlow } from "./bot/handlers/forms";
@@ -30,3 +28,5 @@ setupStartCommand();
 setupFormFlow();
 setupPrivacyButtons();
 setupDocumentHandler();
+
+

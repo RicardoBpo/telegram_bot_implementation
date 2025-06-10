@@ -1,4 +1,5 @@
 import { bot } from "../index"
+
 //import { sendRequestMessage } from "../../utils/sendRequestMessage";
 
 export function sendPrivacyPolicy(chatId: number) {
@@ -18,8 +19,21 @@ export function sendPrivacyPolicy(chatId: number) {
 }
 
 export function setupStartCommand() {
-    bot.onText(/\/start/, (msg) => {
+    /* bot.onText(/\/start/, (msg) => {
         sendPrivacyPolicy(msg.chat.id);
     });
+*/
+
+ bot.onText(/\/start(?:\s(.+))?/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const payload = match?.[1];
+
+    if (payload) {
+      bot.sendMessage(chatId, `¡Hola! Iniciaste la verificación con el número: ${payload}`);
+      bot.sendMessage(chatId, "📋 Formulario de verificación:\n1. ¿Cuál es tu nombre?");
+    } else {
+      sendPrivacyPolicy(chatId);
+    }
+  });
 }
 

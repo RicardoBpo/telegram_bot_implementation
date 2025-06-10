@@ -1,15 +1,20 @@
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
+import cors from 'cors';
+import path from 'path';
+
 import { bot } from "../bot";
 import { TELEGRAM_TOKEN, PUBLIC_URL, PORT, MONGO_URI } from "../config/env";
 
 const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 app.use(bodyParser.json());
 
 bot.setWebHook(`${PUBLIC_URL}/bot${TELEGRAM_TOKEN}`);
-// Initialize DB
-
 
 // Send messages to this route
 app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
@@ -17,11 +22,34 @@ app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
     res.sendStatus(200);
 });
 
+app.post('/initiate-flow', async (req, res) => {
+  const { phone, platform } = req.body;
+
+  if (!phone || platform !== 'telegram') {
+    return res.status(400).json({ success: false, message: 'Datos inválidos' });
+  }
+
+  try {
+    const telegramBotUsername = 'AdamoSignBot'; // Reemplaza esto
+    const telegramLink = `https://t.me/${telegramBotUsername}?start=${encodeURIComponent(phone)}`;
+
+    return res.json({ success: true, telegram_link: telegramLink });
+  } catch (error) {
+    console.error('Error iniciando flujo:', error);
+    return res.status(500).json({ success: false, message: 'Error en el servidor' });
+  }
+});
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../index.html'));
+});
+
+// Initialize DB
 mongoose.connect(MONGO_URI).then(() => {
     console.log("Mongo connected");
-
-    // Start server
-    app.listen(PORT, () => {
-        console.log("Server running");
-    })
 }).catch(console.error);
+
+// Start server
+app.listen(PORT, () => {
+    console.log("Server running");
+})
