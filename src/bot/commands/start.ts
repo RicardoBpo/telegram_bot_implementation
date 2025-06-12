@@ -1,46 +1,35 @@
-import { bot } from "../index"
+import { bot } from "../index";
+import { sendPrivacyPolicy } from "../handlers/terms";
+import User from "../../models/userSchema";
 
 const usersWithTerms = new Set<number>();
 
-export function sendPrivacyPolicy(chatId: number) {
-    const politicas = `👋 ¡Hola! Bienvenido al bot.\n\n🔒 *Políticas de Privacidad*\n\nAl continuar, aceptas nuestras [políticas de privacidad](https://adamo-resources.s3.us-east-2.amazonaws.com/public/ADAMO_ID.pdf). ¿Deseas continuar?`;
-    bot.sendMessage(chatId, politicas, {
-        parse_mode: "Markdown",
-        disable_web_page_preview: true,
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: "✅ Aceptar", callback_data: "privacidad_aceptar" },
-                    { text: "❌ Rechazar", callback_data: "privacidad_rechazar" }
-                ]
-            ]
-        }
-    });
-}
-
 export function setupStartCommand() {
-    bot.onText(/\/start(?:\s(.+))?/, (msg, match) => {
+    
+    /* Start flow, if the user accepts the terms, the flow continues */
+    bot.onText(/\/start(?:\s(.+))?/, async (msg, match) => {
         const chatId = msg.chat.id;
-        const payload = match?.[1];
+        const phone = match?.[1];
+
+        const tempMsg = await bot.sendMessage(chatId, "¡Bienvenido! Iniciando el flujo...");
+        setTimeout(() => {
+            bot.deleteMessage(chatId, tempMsg.message_id);
+        }, 1000);
 
         if (usersWithTerms.has(chatId)) {
             bot.sendMessage(chatId, "Ya aceptaste los términos. Continúa con el proceso.");
             return;
         }
 
-        if (payload) {
-            bot.sendMessage(chatId, `¡Hola! Iniciaste la verificación con el número: ${payload}`);
-            bot.sendMessage(chatId, "📋 Formulario de verificación:\n1. ¿Cuál es tu nombre?");
-        } else {
-            sendPrivacyPolicy(chatId);
+        // Save the user to the set of users who have accepted terms
+        if (phone) {
+            await User.findOneAndUpdate(
+                { userId: msg.from?.id },
+                { phoneNumber: phone, userName: msg.from?.username, userId: msg.from?.id },
+                { upsert: true }
+            );
         }
-    });
 
-    bot.on("callback_query", (query) => {
-        const chatId = query.message?.chat.id;
-        if (!chatId) return;
-        if (query.data === "privacidad_aceptar") {
-            usersWithTerms.add(chatId);
-        }
+        sendPrivacyPolicy(chatId);
     });
 }

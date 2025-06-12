@@ -20,12 +20,12 @@ bot.onText(/\/start/, (msg) => {
  */
 require("./server");
 const start_1 = require("./bot/commands/start");
-const forms_1 = require("./bot/handlers/forms");
-const requestResponse_1 = require("./bot/handlers/callbacks/requestResponse");
-const documents_1 = require("./bot/handlers/documents");
+const terms_1 = require("./bot/handlers/terms");
+const identity_1 = require("./bot/handlers/identity");
+const signature_1 = require("./bot/handlers/signature");
 // Initialize bot
 (0, start_1.setupStartCommand)();
-(0, forms_1.setupFormFlow)();
-(0, requestResponse_1.setupPrivacyButtons)();
-(0, documents_1.setupDocumentHandler)();
+(0, terms_1.setupTermsHandler)();
+(0, identity_1.setupIdentityHandler)();
+(0, signature_1.setupSignatureHandler)();
 //# sourceMappingURL=app.js.map
