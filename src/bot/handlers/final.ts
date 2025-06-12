@@ -12,6 +12,8 @@ export function finalConfirmation(chatId: number, accepted: boolean) {
                 ]
             }
         });
+        bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: chatId });
+        askSignature(chatId);
     }
 }
 

@@ -1,10 +1,12 @@
 import { bot } from "../index";
+/* import { setupIdentityHandler } from "./identity"; */
+import { askCountry } from "./identity";
 import User from "../../models/userSchema";
-import { askIdentity } from "./identity";
 
-export function sendPrivacyPolicy(chatId: number) {
-    const politicas = `👋 ¡Hola! Bienvenido al bot.\n\n🔒 *Políticas de Privacidad*\n\nAl continuar, aceptas nuestras [políticas de privacidad](https://adamo-resources.s3.us-east-2.amazonaws.com/public/ADAMO_ID.pdf). ¿Deseas continuar?`;
-    bot.sendMessage(chatId, politicas, {
+
+export function sendPrivacyPolicy(chatId: number, userName: string) {
+    const policies = `👋 ¡Hola ${userName}! Bienvenido al bot de AdamoSign.\n\n🔒 *Políticas de Privacidad*\n\nAl continuar, aceptas nuestras [políticas de privacidad](https://adamo-resources.s3.us-east-2.amazonaws.com/public/ADAMO_ID.pdf). ¿Deseas continuar?`;
+    bot.sendMessage(chatId, policies, {
         parse_mode: "Markdown",
         disable_web_page_preview: true,
         reply_markup: {
@@ -30,7 +32,6 @@ export function setupTermsHandler() {
 
         if (data === "privacidad_aceptar") {
             await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId });
-            await bot.editMessageText("Procesando... ⏳", { chat_id: chatId, message_id: messageId });
 
             await User.findOneAndUpdate(
                 { userId },
@@ -39,7 +40,7 @@ export function setupTermsHandler() {
             );
 
             setTimeout(() => {
-                askIdentity(chatId);
+                askCountry(chatId);
             }, 1000);
 
         } else if (data === "privacidad_rechazar") {
@@ -56,7 +57,7 @@ export function setupTermsHandler() {
             });
             
         } else if (data === "volver_a_intentar") {
-            sendPrivacyPolicy(chatId);
+            sendPrivacyPolicy(chatId, username);
         }; 
         await bot.answerCallbackQuery(query.id);
     });

@@ -1,48 +1,148 @@
 import { bot } from "../index";
-import User from "../../models/userSchema";
 import { askSignature } from "./signature";
+import { uploadTelegramFileToS3 } from "../../services/s3FileRequest";
+import User from "../../models/userSchema";
+
 
 const countries = ["🇲🇽 México", "🇨🇴 Colombia", "🇦🇷 Argentina", "🇧🇷 Brasil"];
-const userStates = new Map<number, string>();
+const documents = ["Cedula de Ciudadanía", "Cédula de Extranjería", "Pasaporte", "Licencia de Conducir"];
 
-export function askIdentity(chatId: number) {
-    bot.sendMessage(chatId, "¿Cuál es tu nombre completo?");
-    userStates.set(chatId, "esperando_nombre");
+export function askCountry(chatId: number) {
+    bot.sendMessage(chatId, "Primero me gustaría saber en dónde vives!:", {
+        reply_markup: {
+            keyboard: [countries],
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
 }
+
+function askDocumentType(chatId: number) {
+    bot.sendMessage(chatId, "Por favor, selecciona el tipo de documento que deseas verificar:", {
+        reply_markup: {
+            keyboard: [documents],
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
+}
+
+function askDocumentPhoto(chatId: number) {
+    bot.sendMessage(chatId, "Por favor, sube una foto de tu documento de identidad.");
+}
+
+function askSelfie(chatId: number) {
+    bot.sendMessage(chatId, "Ahora sube una selfie (foto de tu rostro).");
+}
+
+function askVideo(chatId: number) {
+    bot.sendMessage(chatId, "Por último, sube un video corto mostrando tu rostro.");
+}
+/* export function askFaceRecognition(chatId: number) {
+    bot.sendMessage(chatId, `chatId, Ahora que seleccionaste, por favor sube una foto de tu rostro o pulsa 'Rechazar'.`, {
+        reply_markup: {
+            keyboard: [documents],
+            one_time_keyboard: true,
+            resize_keyboard: true
+        }
+    });
+} */
 
 export function setupIdentityHandler() {
     bot.on("message", async (msg) => {
         const chatId = msg.chat.id;
-        const state = userStates.get(chatId);
+        const userId = msg.from?.id;
+        const user = await User.findOne({ userId });
 
-        if (state === "esperando_nombre") {
+        if (!user?.termsAccepted) return;
+        // Country selection
+        if (user?.identityStep === undefined && countries.includes(msg.text || "")) {
             await User.findOneAndUpdate(
-                { userId: msg.from?.id },
-                { userName: msg.text },
+                { userId },
+                { country: msg.text, identityStep: "documentType" },
                 { upsert: true }
             );
-            bot.sendMessage(chatId, "Selecciona tu país:", {
-                reply_markup: {
-                    keyboard: [countries],
-                    one_time_keyboard: true,
-                    resize_keyboard: true
-                }
+            bot.sendMessage(chatId, `País seleccionado: ${msg.text}.`, {
+                reply_markup: { remove_keyboard: true }
             });
-            userStates.set(chatId, "esperando_pais");
+            askDocumentType(chatId);
             return;
         }
 
-        if (state === "esperando_pais" && countries.includes(msg.text || "")) {
+        // Document type selection
+        if (user?.identityStep === "documentType" && documents.includes(msg.text || "")) {
             await User.findOneAndUpdate(
-                { userId: msg.from?.id },
-                { country: msg.text },
+                { userId },
+                { documentType: msg.text, identityStep: "documentPhoto" },
                 { upsert: true }
             );
-            bot.sendMessage(chatId, `País seleccionado: ${msg.text}. Ahora puedes subir tu firma o rechazar.`, {
-                reply_markup: { remove_keyboard: true }
-            });
-            userStates.delete(chatId);
+            askDocumentPhoto(chatId);
+            return;
+        }
+
+        // Document photo
+        if (user?.identityStep === "documentPhoto") {
+            if (!msg.photo) {
+                bot.sendMessage(chatId, "Por favor, sube una *foto* de tu documento, no texto.", { parse_mode: "Markdown" });
+                return;
+            }
+            const photo = msg.photo[msg.photo.length - 1];
+            const s3Key = `identity/${userId}/document_${Date.now()}.jpg`;
+            await uploadTelegramFileToS3(photo.file_id, s3Key);
+            bot.sendMessage(chatId, "Documento subido correctamente.");
+            await User.findOneAndUpdate(
+                { userId },
+                { identityStep: "selfie" }
+            );
+            askSelfie(chatId);
+            return;
+        }
+
+        // selfie
+        if (user?.identityStep === "selfie") {
+            if (!msg.photo) {
+                bot.sendMessage(chatId, "Por favor, sube una *selfie* (foto), no texto.", { parse_mode: "Markdown" });
+                return;
+            }
+            const photo = msg.photo[msg.photo.length - 1];
+            const s3Key = `identity/${userId}/selfie_${Date.now()}.jpg`;
+            await uploadTelegramFileToS3(photo.file_id, s3Key);
+            bot.sendMessage(chatId, "Selfie subida correctamente.");
+            await User.findOneAndUpdate(
+                { userId },
+                {
+                    identityStep: "video",
+                    faceRecognition: {
+                        fileId: photo.file_id,
+                        fileName: "selfie.jpg",
+                        verified: false
+                    }
+                }
+            );
+            askVideo(chatId);
+            return;
+        }
+
+        // Ask for video
+        if (user?.identityStep === "video") {
+            /* if (!msg.video) {
+                bot.sendMessage(chatId, "Por favor, sube un *video* mostrando tu rostro, no texto.", { parse_mode: "Markdown" });
+                return;
+            } */
+            const video = msg.video;
+            const s3Key = `identity/${userId}/video_${Date.now()}.mp4`;
+            await uploadTelegramFileToS3(video.file_id, s3Key);
+            bot.sendMessage(chatId, "Video subido correctamente. ¡Identidad validada!");
+            await User.findOneAndUpdate(
+                { userId },
+                { identityStep: "done" }
+            );
+
+        }
+
+        if (user?.identityStep === "done") {
             askSignature(chatId);
+            return;
         }
     });
 }

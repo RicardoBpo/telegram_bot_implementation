@@ -22,7 +22,7 @@ app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
     res.sendStatus(200);
 });
 
-app.post('/initiate-flow', async (req, res) => {
+app.post('/start', async (req, res) => {
   const { phone, platform } = req.body;
 
   if (!phone || platform !== 'telegram') {

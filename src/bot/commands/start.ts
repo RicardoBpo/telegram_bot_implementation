@@ -10,13 +10,9 @@ export function setupStartCommand() {
     bot.onText(/\/start(?:\s(.+))?/, async (msg, match) => {
         const chatId = msg.chat.id;
         const phone = match?.[1];
+        const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
 
-        const tempMsg = await bot.sendMessage(chatId, "¡Bienvenido! Iniciando el flujo...");
-        setTimeout(() => {
-            bot.deleteMessage(chatId, tempMsg.message_id);
-        }, 1000);
-
-        if (usersWithTerms.has(chatId)) {
+        if (usersWithTerms.has(chatId) && acceptedTerms) {
             bot.sendMessage(chatId, "Ya aceptaste los términos. Continúa con el proceso.");
             return;
         }
@@ -30,6 +26,6 @@ export function setupStartCommand() {
             );
         }
 
-        sendPrivacyPolicy(chatId);
+        sendPrivacyPolicy(chatId, msg.from?.first_name || msg.from?.username);
     });
 }
