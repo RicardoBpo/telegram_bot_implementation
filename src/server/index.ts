@@ -30,7 +30,7 @@ app.post('/initiate-flow', async (req, res) => {
   }
 
   try {
-    const telegramBotUsername = 'AdamoSignBot'; // Reemplaza esto
+    const telegramBotUsername = 'AdamoSignBot';
     const telegramLink = `https://t.me/${telegramBotUsername}?start=${encodeURIComponent(phone)}`;
 
     return res.json({ success: true, telegram_link: telegramLink });
