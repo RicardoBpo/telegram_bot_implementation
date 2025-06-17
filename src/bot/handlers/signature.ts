@@ -1,11 +1,14 @@
-import Document from "../../models/documentsSchema";
+/* import Document from "../../models/documentsSchema"; */
 import User from "../../models/userSchema";
 
 import { bot } from "../index";
 import { finalConfirmation } from "./final";
+/* import { finalConfirmation } from "./final"; */
 import { /* getSignedDocumentUrl, */ sendS3DocumentToUser, uploadTelegramFileToS3 } from "../../services/s3FileRequest";
 
-export function askSignature(chatId: number) {
+const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`;
+
+/* export function askSignature(chatId: number) {
     bot.sendMessage(chatId, "Por favor, sube una foto de tu firma o pulsa 'Rechazar'.", {
         reply_markup: {
             inline_keyboard: [
@@ -13,110 +16,96 @@ export function askSignature(chatId: number) {
             ]
         }
     });
-}
+} */
+
+/* async function listUserDocuments(userId: number) {
+    return await Document.find({ userId });
+} */
+
 
 export function setupSignatureHandler() {
+    bot.on("callback_query", async (query) => {
+        const data = query.data;
+        const chatId = query.message?.chat.id;
+        const userId = query.from?.id;
+        if (!data || !chatId || !userId) return;
+
+        if (data === "firmar_si") {
+            await bot.sendMessage(chatId, "Por favor, sube una foto de tu firma.");
+            await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: true });
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        if (data === "firma_rechazar") {
+            await bot.sendMessage(chatId, "Has rechazado el proceso. No has firmado ningún documento.");
+            await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        if (data === "enviar_firmado_si") {
+            await bot.sendMessage(chatId, "¡Documento firmado y enviado exitosamente! 🎉");
+            await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        if (data === "enviar_firmado_no") {
+            await bot.sendMessage(chatId, "El envío del documento firmado ha sido cancelado.");
+            await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        if (data === "enviar_firmado_si") {
+            await bot.sendMessage(chatId, "¡Documento firmado y enviado exitosamente! 🎉");
+            await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
+            await finalConfirmation(chatId); 
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        if (data === "enviar_firmado_no") {
+            await bot.sendMessage(chatId, "El envío del documento firmado ha sido cancelado.");
+            await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
+            await finalConfirmation(chatId);
+            await bot.answerCallbackQuery(query.id);
+            return;
+        }
+    });
+
     bot.on("photo", async (msg) => {
-        
         const userId = msg.from?.id;
         const user = await User.findOne({ userId });
-        
-        if (user?.identityStep !== "done") return;
+        const chatId = msg.chat.id;
+
+        if (!user?.awaitingFirmaUpload) return;
 
         const photo = msg.photo?.[msg.photo.length - 1];
         if (!photo) return;
 
-        await Document.create({
-            userId: msg.from?.id,
-            fileId: photo.file_id,
-            fileName: "Firma"
-        });
-
-        // Get the file extension
+        // Subir la firma a S3
         const file = await bot.getFile(photo.file_id);
         const filePath = file.file_path || "";
         const extension = filePath.split('.').pop() || "jpg";
-
-        const s3Key = `_assets/docs/twilio-media/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${extension}`; //path to store the signature in S3
+        const s3Key = `_assets/docs/twilio-media/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${extension}`;
         await uploadTelegramFileToS3(photo.file_id, s3Key);
 
-        const key = `_assets/docs/telegram_test_doc.pdf`; //path where files store in S3
-        await sendS3DocumentToUser(msg.chat.id, key, "document.pdf");
-        await bot.sendMessage(msg.chat.id, "¿Quieres firmar este documento?", {
+        await bot.sendMessage(chatId, "Este es tu documento firmado:");
+        await sendS3DocumentToUser(chatId, S3_DOC_KEY, "documento_firmado.pdf");
+
+        await bot.sendMessage(chatId, "¿Quieres enviarlo?", {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "✅ Sí, firmar", callback_data: "firmar_si" }],
-                    [{ text: "❌ Rechazar", callback_data: "firma_rechazar" }]
+                    [{ text: "✅ Sí, enviar", callback_data: "enviar_firmado_si" }],
+                    [{ text: "❌ No enviar", callback_data: "enviar_firmado_no" }]
                 ]
             }
         });
-        //ONLY SEND THE URL TO THE USER 
-        /* 
-        const url = await getSignedDocumentUrl(key);
-        await bot.sendMessage(msg.chat.id, `Aquí tienes tu documento:\n${url}`);
-        */
-    });
 
-    bot.on("document", async (msg) => {
-        const doc = msg.document;
-        if (!doc) return;
+        await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
 
-        const allowedMimeTypes = [
-            "application/pdf",
-            "application/msword",
-        ];
-        if (!allowedMimeTypes.includes(doc.mime_type || "")) {
-            bot.sendMessage(msg.chat.id, "Solo se aceptan archivos PDF o Word (.doc, .docx).");
-            return;
-        }
-
-        await Document.create({
-            userId: msg.from?.id,
-            fileId: doc.file_id,
-            fileName: doc.file_name
-        });
-
-        const file = await bot.getFile(doc.file_id);
-        const filePath = file.file_path || "";
-        const extension = filePath.split('.').pop() || "pdf";
         
-        const s3Key = `_assets/docs/twilio-media/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${extension}`; //path to store the signature in S3
-        await uploadTelegramFileToS3(doc.file_id, s3Key);
-        
-        const key = `documentos/${msg.from?.id}/documento.pdf`; //path to store the document in S3
-        await sendS3DocumentToUser(msg.chat.id, key, "document.pdf");
-        await bot.sendMessage(msg.chat.id, "¿Quieres firmar este documento?", {
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "✅ Sí, firmar", callback_data: "firmar_si" }],
-                    [{ text: "❌ Rechazar", callback_data: "firma_rechazar" }]
-                ]
-            }
-        });
-        //ONLY SEND THE URL TO THE USER 
-        /* 
-        const url = await getSignedDocumentUrl(key);
-        await bot.sendMessage(msg.chat.id, `Aquí tienes tu documento:\n${url}`);
-        */
-    });
-
-    bot.on("callback_query", async (query) => {
-        const chatId = query.message?.chat.id;
-        const messageId = query.message?.message_id;
-
-        if (!chatId) return;
-
-        if (query.data === "firma_rechazar") {
-            // Delete the message and display signature prompt again
-            await bot.deleteMessage(chatId, messageId!);
-            askSignature(chatId);
-            await bot.answerCallbackQuery(query.id);
-        }
-
-        if (query.data === "firmar_si") {
-            finalConfirmation(chatId, true);
-            await bot.answerCallbackQuery(query.id);
-        
-        }
     });
 }

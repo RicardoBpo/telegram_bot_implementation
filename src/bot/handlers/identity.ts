@@ -1,11 +1,19 @@
 import { bot } from "../index";
-import { askSignature } from "./signature";
+/* import { askSignature } from "./signature"; */
 import { uploadTelegramFileToS3 } from "../../services/s3FileRequest";
+import { sendS3DocumentToUser } from "../../services/s3FileRequest";
 import User from "../../models/userSchema";
 
 
 const countries = ["🇲🇽 México", "🇨🇴 Colombia", "🇦🇷 Argentina", "🇧🇷 Brasil"];
-const documents = ["Cedula de Ciudadanía", "Cédula de Extranjería", "Pasaporte", "Licencia de Conducir"];
+const documents = [
+    "Cedula de Ciudadanía",
+    "Cédula de Extranjería",
+    "Pasaporte",
+    "Licencia de Conducir"
+];
+
+const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`;
 
 export function askCountry(chatId: number) {
     bot.sendMessage(chatId, "Primero me gustaría saber en dónde vives!:", {
@@ -17,27 +25,27 @@ export function askCountry(chatId: number) {
     });
 }
 
-function askDocumentType(chatId: number) {
+export function askDocumentType(chatId: number) {
     bot.sendMessage(chatId, "Por favor, selecciona el tipo de documento que deseas verificar:", {
         reply_markup: {
-            keyboard: [documents],
+            keyboard: documents.map(doc => [doc]),
             one_time_keyboard: true,
             resize_keyboard: true
         }
     });
 }
 
-function askDocumentPhoto(chatId: number) {
+export function askDocumentPhoto(chatId: number) {
     bot.sendMessage(chatId, "Por favor, sube una foto de tu documento de identidad.");
 }
 
-function askSelfie(chatId: number) {
+export function askSelfie(chatId: number) {
     bot.sendMessage(chatId, "Ahora sube una selfie (foto de tu rostro).");
 }
 
-function askVideo(chatId: number) {
+/* function askVideo(chatId: number) {
     bot.sendMessage(chatId, "Por último, sube un video corto mostrando tu rostro.");
-}
+} */
 /* export function askFaceRecognition(chatId: number) {
     bot.sendMessage(chatId, `chatId, Ahora que seleccionaste, por favor sube una foto de tu rostro o pulsa 'Rechazar'.`, {
         reply_markup: {
@@ -111,7 +119,7 @@ export function setupIdentityHandler() {
             await User.findOneAndUpdate(
                 { userId },
                 {
-                    identityStep: "video",
+                    identityStep: "done",
                     faceRecognition: {
                         fileId: photo.file_id,
                         fileName: "selfie.jpg",
@@ -119,16 +127,26 @@ export function setupIdentityHandler() {
                     }
                 }
             );
-            askVideo(chatId);
-            return;
+            await bot.sendMessage(chatId, "Este será el documento que vas a firmar:");
+            await sendS3DocumentToUser(chatId, S3_DOC_KEY, "documento.pdf");
+            await bot.sendMessage(chatId, "¿Quieres firmar este documento?", {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "✅ Sí, firmar", callback_data: "firmar_si" }],
+                        [{ text: "❌ Rechazar", callback_data: "firma_rechazar" }]
+                    ]
+                }
+            });
+            /* askVideo(chatId); 
+            return;*/
         }
 
         // Ask for video
-        if (user?.identityStep === "video") {
-            /* if (!msg.video) {
+        /* if (user?.identityStep === "video") {
+            if (!msg.video) {
                 bot.sendMessage(chatId, "Por favor, sube un *video* mostrando tu rostro, no texto.", { parse_mode: "Markdown" });
                 return;
-            } */
+            }
             const video = msg.video;
             const s3Key = `identity/${userId}/video_${Date.now()}.mp4`;
             await uploadTelegramFileToS3(video.file_id, s3Key);
@@ -137,12 +155,9 @@ export function setupIdentityHandler() {
                 { userId },
                 { identityStep: "done" }
             );
-
-        }
-
-        if (user?.identityStep === "done") {
             askSignature(chatId);
             return;
-        }
+        } */
+
     });
 }

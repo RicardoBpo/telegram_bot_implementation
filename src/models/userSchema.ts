@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
     termsAccepted: Boolean,
     identityStep: String,
     documentType: String,
+    awaitingFirmaUpload: Boolean,
+    awaitingSignature: Boolean,
     faceRecognition: {
         fileId: String,
         fileName: String,
