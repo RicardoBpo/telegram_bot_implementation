@@ -2,6 +2,7 @@ import { bot } from "../index";
 /* import { askSignature } from "./signature"; */
 import { uploadTelegramFileToS3 } from "../../services/s3FileRequest";
 import { sendS3DocumentToUser } from "../../services/s3FileRequest";
+import { updateUserActivity, isSessionBlocked } from "../../services/sessionManager";
 import User from "../../models/userSchema";
 
 
@@ -61,6 +62,14 @@ export function setupIdentityHandler() {
         const chatId = msg.chat.id;
         const userId = msg.from?.id;
         const user = await User.findOne({ userId });
+
+        if (isSessionBlocked(user)) {
+            bot.sendMessage(chatId, "Tu sesión fue cerrada por inactividad. Por favor, inicia el proceso de nuevo con /start.");
+            return;
+        }
+
+        // Update user activity
+        await updateUserActivity(userId, chatId);
 
         if (!user?.termsAccepted) return;
         // Country selection

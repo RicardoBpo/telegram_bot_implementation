@@ -3,6 +3,8 @@ import { sendPrivacyPolicy } from "../handlers/terms";
 /* import { askSignature } from "../handlers/signature"; */
 import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../handlers/identity";
 import { sendS3DocumentToUser } from "../../services/s3FileRequest";
+import { resetSession } from "../../services/sessionManager";
+
 import User from "../../models/userSchema";
 
 const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`;
@@ -15,6 +17,8 @@ export function setupStartCommand() {
         const phone = match?.[1];
         const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
         const userName = msg.from?.first_name
+
+        await resetSession(msg.from?.id);
 
         if (acceptedTerms) {
             bot.sendMessage(chatId, `¡Hola ${userName}! Ya aceptaste los términos y condiciones. Continúa con el proceso.`);

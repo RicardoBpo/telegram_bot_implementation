@@ -15,6 +15,14 @@ const userSchema = new mongoose.Schema({
         fileName: String,
         verified: Boolean,
     },
+    lastActivity: Date,
+    sessionBlocked: { type: Boolean, default: false },
+    sessionAuditLog: [
+        {
+            event: String,
+            timestamp: Date
+        }
+    ]
 });
 
 

@@ -3,6 +3,7 @@ import User from "../../models/userSchema";
 
 import { bot } from "../index";
 import { finalConfirmation } from "./final";
+import { updateUserActivity, isSessionBlocked } from "../../services/sessionManager";
 /* import { finalConfirmation } from "./final"; */
 import { /* getSignedDocumentUrl, */ sendS3DocumentToUser, uploadTelegramFileToS3 } from "../../services/s3FileRequest";
 
@@ -28,7 +29,16 @@ export function setupSignatureHandler() {
         const data = query.data;
         const chatId = query.message?.chat.id;
         const userId = query.from?.id;
+        const user = await User.findOne({ userId });
+
         if (!data || !chatId || !userId) return;
+
+        if (isSessionBlocked(user)) {
+            bot.sendMessage(chatId, "Tu sesión fue cerrada por inactividad. Por favor, inicia el proceso de nuevo con /start.");
+            return;
+        }
+
+        await updateUserActivity(userId, chatId);
 
         if (data === "firmar_si") {
             await bot.sendMessage(chatId, "Por favor, sube una foto de tu firma.");
@@ -38,7 +48,8 @@ export function setupSignatureHandler() {
         }
 
         if (data === "firma_rechazar") {
-            await bot.sendMessage(chatId, "Has rechazado el proceso. No has firmado ningún documento.");
+            const docName = "documento.pdf"; // Insert filename logic here
+            await bot.sendMessage(chatId, `Has rechazado firmar el documento 📄 ${docName}.`);
             await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
             await bot.answerCallbackQuery(query.id);
             return;
