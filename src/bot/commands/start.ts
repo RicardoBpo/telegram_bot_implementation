@@ -4,7 +4,7 @@ import { sendPrivacyPolicy } from "../handlers/terms";
 import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../handlers/identity";
 import { sendS3DocumentToUser } from "../../services/s3FileRequest";
 import { resetSession } from "../../services/sessionManager";
-
+import Invitation from "../../models/invitationSchema";
 import User from "../../models/userSchema";
 
 const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`;
@@ -17,6 +17,26 @@ export function setupStartCommand() {
         const phone = match?.[1];
         const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
         const userName = msg.from?.first_name
+        const token = match?.[1] || "";
+
+        if (token) {
+            // Buscar invitación por token
+            const invitation = await Invitation.findOne({ token });
+            if (!invitation) {
+                bot.sendMessage(chatId, "Invitación no válida o expirada.");
+                return;
+            }
+            if (invitation.expiresAt < new Date()) {
+                bot.sendMessage(chatId, "Esta invitación ha expirado.");
+                return;
+            }
+            // Aquí puedes asociar el userId de Telegram con la invitación, etc.
+            // ...actualiza el usuario, etc...
+        } else {
+            bot.sendMessage(chatId, "Debes acceder desde el enlace de invitación.");
+            return;
+        }
+        // ...resto del flujo...
 
         await resetSession(msg.from?.id);
 

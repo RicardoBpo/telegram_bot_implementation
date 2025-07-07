@@ -3,6 +3,8 @@ import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import cors from 'cors';
 import path from 'path';
+import crypto from "crypto";
+import Invitation from "../models/invitationSchema";
 
 import { bot } from "../bot";
 import { TELEGRAM_TOKEN, PUBLIC_URL, PORT, MONGO_URI } from "../config/env";
@@ -31,7 +33,17 @@ app.post('/start', async (req, res) => {
 
   try {
     const telegramBotUsername = 'AdamoSignBot';
-    const telegramLink = `https://t.me/${telegramBotUsername}?start=${encodeURIComponent(phone)}`;
+    // Generar token
+    const token = crypto.randomBytes(24).toString('hex');
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // expires in 48 hours
+
+    await Invitation.create(
+      token,
+      req.body.userId, // Assuming userId is passed in the request body
+      expiresAt
+    );
+
+    const telegramLink = `https://t.me/${telegramBotUsername}?start=${encodeURIComponent(token)}`;
 
     return res.json({ success: true, telegram_link: telegramLink });
   } catch (error) {
