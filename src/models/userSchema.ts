@@ -3,6 +3,12 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     userId: Number,
     userName: String,
+    documentKey: { type: String },
+    documentUrl: { type: String },
+    documentName: { type: String },
+    participantName: { type: String },
+    token: { type: String },
+    signerId: { type: String },
     phoneNumber: String,
     country: String,
     termsAccepted: Boolean,
