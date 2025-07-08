@@ -23,15 +23,15 @@ app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
 });
   
 app.post('/start', async (req, res) => {
-  const { phone, platform } = req.body;
+  const { token, platform } = req.body;
 
-  if (!phone || platform !== 'telegram') {
+  if (!token || platform !== 'telegram') {
     return res.status(400).json({ success: false, message: 'Datos inválidos' });
   }
 
   try {
     const telegramBotUsername = 'AdamoSignBot';
-    const telegramLink = `https://t.me/${telegramBotUsername}?start=${encodeURIComponent(phone)}`;
+    const telegramLink = `https://t.me/${telegramBotUsername}?start=${encodeURIComponent(token)}`;
 
     return res.json({ success: true, telegram_link: telegramLink });
   } catch (error) {
