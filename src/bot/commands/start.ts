@@ -24,14 +24,13 @@ export function setupStartCommand() {
 
         if (acceptedTerms) {
             console.log("token: ", token);
-            
+
             if (token) {
                 try {
                     const verifyResult = await documentsUseCase.verifyToken({ token });
-                    console.log("verifyResult code: ", verifyResult.status.code.code);
-                    console.log("verifyResult data: ", verifyResult.data);
-                    
-                    if (verifyResult.status.code.code === "success" && verifyResult.data) {
+                    console.log("verifyResult completo:", verifyResult);
+
+                    if (verifyResult.data) {
                         const { document, signerId } = verifyResult.data;
                         const signerName = document.participants.find((p) => p.uuid === signerId);
                         const participantName = signerName?.first_name ?? "";
@@ -58,7 +57,7 @@ export function setupStartCommand() {
                     console.error("Error actualizando documento:", err);
                 }
             }
-            
+
             bot.sendMessage(chatId, `¡Hola ${userName}! Ya aceptaste los términos y condiciones. Continúa con el proceso.`);
 
             const user = await User.findOne({ userId: msg.from?.id });
@@ -85,10 +84,15 @@ export function setupStartCommand() {
                     await sendS3DocumentToUser(chatId, S3_DOC_KEY, "documento.pdf"); */
                     const documentName = user.documentName || "Documento";
                     const documentUrl = user.documentUrl;
-                    await bot.sendMessage(chatId, `Este será el documento que vas a firmar: *${documentName}*`, { parse_mode: "Markdown" });
+                    const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(token)}`;
+                    await bot.sendMessage(chatId, `Este será el documento que vas a firmar: *${documentName}*\n\nfirmalo aquí: [Ver documento](${docLink})`,
+                        { parse_mode: "Markdown" }
+                    );
+
                     if (documentUrl) {
                         await bot.sendDocument(chatId, documentUrl, {}, { filename: documentName });
                     }
+
                     await bot.sendMessage(chatId, "¿Quieres firmar este documento?", {
                         reply_markup: {
                             inline_keyboard: [
