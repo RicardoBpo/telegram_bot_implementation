@@ -23,7 +23,7 @@ app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
 });
   
 app.post('/start', async (req, res) => {
-  const { token, platform, phone } = req.body;
+  const {  token, platform, phone } = req.body;
 
   if (!token || platform !== 'telegram' || !phone) {
     return res.status(400).json({ success: false, message: 'Datos inválidos' });

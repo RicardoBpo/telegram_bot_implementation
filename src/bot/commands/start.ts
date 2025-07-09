@@ -4,6 +4,7 @@ import { sendPrivacyPolicy } from "../handlers/terms";
 import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../handlers/identity";
 /* import { sendS3DocumentToUser } from "../../services/s3FileRequest"; */
 import { resetSession } from "../../services/sessionManager";
+import { sendPendingDocumentMessage } from "../handlers/document";
 
 import User from "../../models/userSchema";
 import documentsUseCase from "../../api/useCases/DocumentsUseCase";
@@ -14,7 +15,7 @@ export function setupStartCommand() {
 
     /* Start flow, if the user accepts the terms, the flow continues */
     bot.onText(/\/start(?:\s?(.+))?/, async (msg, match) => {
-        const param = match?.[1]; 
+        const param = match?.[1];
         console.log("Param recibido:", param);
         let phone: string | undefined;
         let token: string | undefined;
@@ -99,29 +100,7 @@ export function setupStartCommand() {
                 }, 1000);
             } else if (user.identityStep === "done") {
                 setTimeout(async () => {
-                    /* await bot.sendMessage(chatId, "Este será el documento que vas a firmar:");
-                    await sendS3DocumentToUser(chatId, S3_DOC_KEY, "documento.pdf"); */
-                    /* const documentName = user.documentName || "Documento";
-                    const documentUrl = user.documentUrl;
-                    const docToken = user.token;
-                    const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(docToken)}`;
-                    await bot.sendMessage(chatId, `Este será el documento que vas a firmar: *${documentName}*\n\nfirmalo aquí: [Ver documento](${docLink})`,
-                        { parse_mode: "Markdown" }
-                    );
-
-                    if (documentUrl) {
-                        await bot.sendDocument(chatId, documentUrl, {}, { filename: documentName });
-                    } */
-                    await bot.sendMessage(chatId, "Tienes un documento pendiente por firmar", {
-                        parse_mode: "Markdown",
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    { text: "🔗 Mostrar documento a firmar", callback_data: `mostrar_documento_${msg.from?.id}` }
-                                ]
-                            ]
-                        }
-                    });
+                    await sendPendingDocumentMessage(chatId, user);
                 }, 1000);
 
             }

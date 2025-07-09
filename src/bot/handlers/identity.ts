@@ -1,8 +1,9 @@
 import { bot } from "../index";
 /* import { askSignature } from "./signature"; */
 import { uploadTelegramFileToS3 } from "../../services/s3FileRequest";
-import { sendS3DocumentToUser } from "../../services/s3FileRequest";
+/* import { sendS3DocumentToUser } from "../../services/s3FileRequest"; */
 import { updateUserActivity, isSessionBlocked } from "../../services/sessionManager";
+import { sendPendingDocumentMessage } from "./document";
 import User from "../../models/userSchema";
 
 
@@ -14,7 +15,7 @@ const documents = [
     "Licencia de Conducir"
 ];
 
-const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`;
+/* const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`; */
 
 export function askCountry(chatId: number) {
     bot.sendMessage(chatId, "Primero me gustaría saber en dónde vives!:", {
@@ -136,16 +137,13 @@ export function setupIdentityHandler() {
                     }
                 }
             );
-            await bot.sendMessage(chatId, "Este será el documento que vas a firmar:");
-            await sendS3DocumentToUser(chatId, S3_DOC_KEY, "documento.pdf");
-            await bot.sendMessage(chatId, "¿Quieres firmar este documento?", {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "✅ Sí, firmar", callback_data: "firmar_si" }],
-                        [{ text: "❌ Rechazar", callback_data: "firma_rechazar" }]
-                    ]
-                }
-            });
+            bot.sendMessage(chatId, "¡Identidad validada! Ahora puedes firmar documentos.");
+            setTimeout(async () => {
+                const updatedUser = await User.findOne({ userId });
+                await sendPendingDocumentMessage(chatId, updatedUser);
+                return;
+            }, 1000);
+            
             /* askVideo(chatId); 
             return;*/
         }
