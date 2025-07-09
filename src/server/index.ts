@@ -23,7 +23,7 @@ app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
     res.sendStatus(200);
 });
   
-app.use('/send-message', sendMessageRoute);
+app.use('/', sendMessageRoute);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../index.html'));
