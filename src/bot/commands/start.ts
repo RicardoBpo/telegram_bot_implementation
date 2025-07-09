@@ -13,11 +13,24 @@ import documentsUseCase from "../../api/useCases/DocumentsUseCase";
 export function setupStartCommand() {
 
     /* Start flow, if the user accepts the terms, the flow continues */
-    bot.onText(/\/start(?:\s?(.+))?/, async (msg) => {
-        let token: string | undefined = undefined;
-        if (msg.text) {
-            token = msg.text.substring(6).trim();
-            if (token === "") token = undefined;
+    bot.onText(/\/start(?:\s?(.+))?/, async (msg, match) => {
+        const param = match?.[1]; 
+        console.log("Param recibido:", param);
+        let phone: string | undefined;
+        let token: string | undefined;
+        if (msg.text?.startsWith('/start')) {
+            const text = msg.text;
+            const params = text.substring(6).trim(); //Delete '/start'
+
+            if (params) {
+                const parts = params.split('_');
+                if (parts.length === 2) {
+                    phone = decodeURIComponent(parts[0]);
+                    token = decodeURIComponent(parts[1]);
+                } else {
+                    token = params;
+                }
+            }
         }
         const chatId = msg.chat.id;
         /* const phone = match?.[1]; */
@@ -27,9 +40,11 @@ export function setupStartCommand() {
         await resetSession(msg.from?.id);
 
         if (acceptedTerms) {
+
             console.log("token: ", token);
 
             if (token) {
+
                 try {
                     const verifyResult = await documentsUseCase.verifyToken({ token });
                     console.log("verifyResult completo:", verifyResult);
@@ -86,7 +101,7 @@ export function setupStartCommand() {
                 setTimeout(async () => {
                     /* await bot.sendMessage(chatId, "Este será el documento que vas a firmar:");
                     await sendS3DocumentToUser(chatId, S3_DOC_KEY, "documento.pdf"); */
-                    const documentName = user.documentName || "Documento";
+                    /* const documentName = user.documentName || "Documento";
                     const documentUrl = user.documentUrl;
                     const docToken = user.token;
                     const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(docToken)}`;
@@ -96,17 +111,17 @@ export function setupStartCommand() {
 
                     if (documentUrl) {
                         await bot.sendDocument(chatId, documentUrl, {}, { filename: documentName });
-                    }
-                    /* await bot.sendMessage(chatId, "Tienes un documento pendiente por firmar", {
+                    } */
+                    await bot.sendMessage(chatId, "Tienes un documento pendiente por firmar", {
                         parse_mode: "Markdown",
                         reply_markup: {
                             inline_keyboard: [
                                 [
-                                    { text: "🔗 Mostrar documento a firmar", callback_data: `mostrar_documento_${token}` }
+                                    { text: "🔗 Mostrar documento a firmar", callback_data: `mostrar_documento_${msg.from?.id}` }
                                 ]
                             ]
                         }
-                    }); */
+                    });
                 }, 1000);
 
             }
@@ -114,14 +129,13 @@ export function setupStartCommand() {
             return;
         }
 
-
-        /* if (phone) {
+        if (phone) {
             await User.findOneAndUpdate(
                 { userId: msg.from?.id },
                 { phoneNumber: phone, userName: msg.from?.username, userId: msg.from?.id },
                 { upsert: true }
             );
-        } */
+        }
 
         sendPrivacyPolicy(chatId, msg.from?.first_name || msg.from?.username);
     });
@@ -131,11 +145,13 @@ bot.on('callback_query', async (callbackQuery) => {
     const msg = callbackQuery.message;
     const chatId = msg.chat.id;
     const data = callbackQuery.data;
-    const token = data.replace('mostrar_documento_', '');
 
     if (data.startsWith('mostrar_documento_')) {
-        const user = await User.findOne({ userId: callbackQuery.from.id });
-        if (user && user.documentUrl) {
+        const userId = data.replace('mostrar_documento_', '');
+        const user = await User.findOne({ userId: parseInt(userId) });
+
+        if (user && user.token && user.documentUrl) {
+            const token = user.token;
             const documentName = user.documentName || "Documento";
             const documentUrl = user.documentUrl;
             const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(token)}`;
