@@ -2,7 +2,6 @@ import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import cors from 'cors';
-import path from 'path';
 
 import { bot } from "../bot";
 import { TELEGRAM_TOKEN, PUBLIC_URL, PORT, MONGO_URI } from "../config/env";
@@ -42,9 +41,10 @@ app.post('/start', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
+app.use('/send', sendMessageRoute);
+/* app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../index.html'));
-});
+}); */
 
 // Initialize DB
 mongoose.connect(MONGO_URI).then(() => {

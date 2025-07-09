@@ -1,8 +1,5 @@
 import { bot } from "../index";
-import { sendPrivacyPolicy } from "../handlers/terms";
-/* import { askSignature } from "../handlers/signature"; */
-/* import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../handlers/identity"; */
-/* import { sendS3DocumentToUser } from "../../services/s3FileRequest"; */
+import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../handlers/identity";
 import { resetSession } from "../../services/sessionManager";
 import { sendPendingDocumentMessage } from "../handlers/document";
 
@@ -34,8 +31,6 @@ export function setupStartCommand() {
         const chatId = msg.chat.id;
         /* const phone = match?.[1]; */
         const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
-        const userName = msg.from?.first_name
-        const token = match?.[1];
         const userName = msg.from?.first_name;
 
         await resetSession(msg.from?.id);
@@ -104,7 +99,6 @@ export function setupStartCommand() {
                 }, 1000);
 
             }
-
             return;
         }
 
@@ -114,63 +108,9 @@ export function setupStartCommand() {
                 { phoneNumber: phone, userName: msg.from?.username, userId: msg.from?.id },
                 { upsert: true }
             );
-        // Verifica si ya aceptó términos
-        const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
-
-        if (!acceptedTerms) {
-            // Envía términos y condiciones
-            await sendPrivacyPolicy(chatId, userName || msg.from?.username);
-            return;
-        }
-
-        // Si ya aceptó términos, procesa el documento
-        if (token) {
-            try {
-                const verifyResult = await documentsUseCase.verifyToken({ token });
-                if (verifyResult.data) {
-                    const { document, signerId } = verifyResult.data;
-                    const signerName = document.participants.find((p) => p.uuid === signerId);
-                    const participantName = signerName?.first_name ?? "";
-                    const documentStatus = signerName?.status || "pending"; 
-                    console.log("Document status: ", documentStatus);
-                    
-                    await User.findOneAndUpdate(
-                        { userId: msg.from?.id },
-                        {
-                            documentKey: document.metadata.s3Key,
-                            documentUrl: document.metadata.url,
-                            documentName: document.filename,
-                            documentStatus: document.participants.find((p) => p.status),
-                            participantName: participantName,
-                            token: token,
-                            signerId: signerId,
-                        },
-                        { upsert: true }
-                    );
-                    
-
-                    // Envía el documento y el botón de firmar
-                    const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(token)}`;
-                    await bot.sendMessage(
-                        chatId,
-                        `¡Hola ${participantName}! \n\nEste será el documento que vas a firmar: *${document.filename}*\n\nFírmalo aquí: [Ver documento](${docLink})`,
-                        { parse_mode: "Markdown" }
-                    );
-
-                    if (document.metadata.url) {
-                        await bot.sendDocument(chatId, document.metadata.url, {}, { filename: document.filename });
-                    }
-                }
-            } catch (err) {
-                console.error("Error actualizando documento:", err);
-                await bot.sendMessage(chatId, "Hubo un error obteniendo el documento.");
-            }
-        } else {
-            await bot.sendMessage(chatId, "Por favor, ingresa usando el enlace con tu token.");
-        }
-    });
-
-}
+        };
+    }
+)};
 
 bot.on('callback_query', async (callbackQuery) => {
     const msg = callbackQuery.message;

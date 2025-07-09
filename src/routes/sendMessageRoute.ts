@@ -19,8 +19,6 @@ router.post('/send', async (req, res) => {
       user = new User({
         phoneNumber: phone,
         token: token,
-        lastActivity: new Date(),
-        sessionAuditLog: [{ event: 'token_generated', timestamp: new Date() }]
       });
       await user.save();
     } else {
