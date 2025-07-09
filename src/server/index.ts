@@ -23,7 +23,24 @@ app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
     res.sendStatus(200);
 });
   
-app.use('/', sendMessageRoute);
+app.post('/start', async (req, res) => {
+  const {  token, platform, phone } = req.body;
+
+  if (!token || platform !== 'telegram' || !phone) {
+    return res.status(400).json({ success: false, message: 'Datos inválidos' });
+  }
+
+  try {
+    const telegramBotUsername = 'AdamoSignBot';
+    const startParam = `${encodeURIComponent(phone)}_${encodeURIComponent(token)}`;
+    const telegramLink = `https://t.me/${telegramBotUsername}?start=${startParam}`;
+
+    return res.json({ success: true, telegram_link: telegramLink });
+  } catch (error) {
+    console.error('Error iniciando flujo:', error);
+    return res.status(500).json({ success: false, message: 'Error en el servidor' });
+  }
+});
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../index.html'));
