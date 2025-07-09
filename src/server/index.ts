@@ -6,6 +6,7 @@ import path from 'path';
 
 import { bot } from "../bot";
 import { TELEGRAM_TOKEN, PUBLIC_URL, PORT, MONGO_URI } from "../config/env";
+import sendMessageRoute from "../routes/sendMessageRoute";
 
 const app = express();
 
@@ -23,16 +24,16 @@ app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
 });
   
 app.post('/start', async (req, res) => {
-  const {  token, platform, phone } = req.body;
+  const { platform, phone } = req.body;
 
-  if (!token || platform !== 'telegram' || !phone) {
+  if (platform !== 'telegram' || !phone) {
     return res.status(400).json({ success: false, message: 'Datos inválidos' });
   }
 
   try {
     const telegramBotUsername = 'AdamoSignBot';
-    const startParam = `${encodeURIComponent(phone)}_${encodeURIComponent(token)}`;
-    const telegramLink = `https://t.me/${telegramBotUsername}?start=${startParam}`;
+    //const startParam = `${encodeURIComponent(phone)}_${encodeURIComponent(token)}`;
+    const telegramLink = `https://t.me/${telegramBotUsername}?start=${phone}`;
 
     return res.json({ success: true, telegram_link: telegramLink });
   } catch (error) {
@@ -40,6 +41,8 @@ app.post('/start', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Error en el servidor' });
   }
 });
+
+app.use('/send-info', sendMessageRoute);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../index.html'));

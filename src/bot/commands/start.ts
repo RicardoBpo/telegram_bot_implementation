@@ -1,148 +1,145 @@
 import { bot } from "../index";
 import { sendPrivacyPolicy } from "../handlers/terms";
-/* import { askSignature } from "../handlers/signature"; */
 import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../handlers/identity";
-/* import { sendS3DocumentToUser } from "../../services/s3FileRequest"; */
 import { resetSession } from "../../services/sessionManager";
 import { sendPendingDocumentMessage } from "../handlers/document";
 
 import User from "../../models/userSchema";
 import documentsUseCase from "../../api/useCases/DocumentsUseCase";
 
-/* const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`; */
-
 export function setupStartCommand() {
+    // Manejo del comando /start con payload JWT u otros datos
+    bot.onText(/^\/start(?:\s+(.+))?$/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const payload = match?.[1];
+        console.log("Payload recibido:", payload);
 
-    /* Start flow, if the user accepts the terms, the flow continues */
-    bot.onText(/\/start(?:\s?(.+))?/, async (msg, match) => {
-        const param = match?.[1];
-        console.log("Param recibido:", param);
+        // Variables para posibles datos
         let phone: string | undefined;
         let token: string | undefined;
-        if (msg.text?.startsWith('/start')) {
-            const text = msg.text;
-            const params = text.substring(6).trim(); //Delete '/start'
 
-            if (params) {
-                const parts = params.split('_');
-                if (parts.length === 2) {
-                    phone = decodeURIComponent(parts[0]);
-                    token = decodeURIComponent(parts[1]);
-                } else {
-                    token = params;
-                }
+        if (payload) {
+            // Si viene en formato phone_token
+            const parts = payload.split("_");
+            if (parts.length === 2) {
+                phone = parts[0];
+                token = parts[1];
+            } else {
+                // Asumimos que todo es token
+                token = payload;
             }
         }
-        const chatId = msg.chat.id;
-        /* const phone = match?.[1]; */
-        const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
-        const userName = msg.from?.first_name
 
+        // Reiniciar sesión del usuario
         await resetSession(msg.from?.id);
 
+        // Verificar si ya aceptó términos
+        const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
+        const userName = msg.from?.first_name || msg.from?.username || '';
+
         if (acceptedTerms) {
-
-            console.log("token: ", token);
-
+            // Procesar token si existe
             if (token) {
-
                 try {
                     const verifyResult = await documentsUseCase.verifyToken({ token });
-                    console.log("verifyResult completo:", verifyResult);
-
                     if (verifyResult.data) {
                         const { document, signerId } = verifyResult.data;
-                        const signerName = document.participants.find((p) => p.uuid === signerId);
-                        const participantName = signerName?.first_name ?? "";
-                        console.log("signerName: ", signerName);
-                        console.log("participantName: ", participantName);
-                        console.log("documentKey: ", document.metadata.s3Key);
-                        console.log("documentUrl: ", document.metadata.url);
-                        console.log("documentName: ", document.filename);
+                        const signer = document.participants.find(p => p.uuid === signerId);
+                        const participantName = signer?.first_name ?? '';
 
-                        await User.findOneAndUpdate(
-                            { userId: msg.from?.id },
-                            {
-                                documentKey: document.metadata.s3Key,
-                                documentUrl: document.metadata.url,
-                                documentName: document.filename,
-                                participantName: participantName,
-                                token: token,
-                                signerId: signerId,
-                            },
-                            { upsert: true }
-                        );
+                        if (phone) {
+                            await User.findOneAndUpdate(
+                                { phoneNumber: phone },
+                                {
+                                    userId: msg.from?.id,
+                                    userName,
+                                    documentKey: document.metadata.s3Key,
+                                    documentUrl: document.metadata.url,
+                                    documentName: document.filename,
+                                    participantName,
+                                    token,
+                                    signerId,
+                                },
+                                { upsert: true }
+                            );
+                        } else {
+                            // Si no hay teléfono, busca por userId como antes
+                            await User.findOneAndUpdate(
+                                { userId: msg.from?.id },
+                                {
+                                    documentKey: document.metadata.s3Key,
+                                    documentUrl: document.metadata.url,
+                                    documentName: document.filename,
+                                    participantName,
+                                    token,
+                                    signerId,
+                                },
+                                { upsert: true }
+                            );
+                        }
                     }
                 } catch (err) {
-                    console.error("Error actualizando documento:", err);
+                    console.error("Error al verificar token:", err);
                 }
             }
 
-            bot.sendMessage(chatId, `¡Hola ${userName}! Ya aceptaste los términos y condiciones. Continúa con el proceso.`);
+            await bot.sendMessage(chatId, `¡Hola ${userName}! Continúa con el proceso.`);
 
             const user = await User.findOne({ userId: msg.from?.id });
-
-            if (!user?.identityStep) {
-                setTimeout(() => {
-                    askCountry(chatId);
-                }, 1000);
-            } else if (user.identityStep === "documentType") {
-                setTimeout(() => {
-                    askDocumentType(chatId);
-                }, 1000);
-            } else if (user.identityStep === "documentPhoto") {
-                setTimeout(() => {
-                    askDocumentPhoto(chatId);
-                }, 1000);
-            } else if (user.identityStep === "selfie") {
-                setTimeout(() => {
-                    askSelfie(chatId);
-                }, 1000);
-            } else if (user.identityStep === "done") {
-                setTimeout(async () => {
-                    await sendPendingDocumentMessage(chatId, user);
-                }, 1000);
-
+            // Continuar flujo según el paso guardado
+            switch (user?.identityStep) {
+                case undefined:
+                    setTimeout(() => askCountry(chatId), 1000);
+                    break;
+                case "documentType":
+                    setTimeout(() => askDocumentType(chatId), 1000);
+                    break;
+                case "documentPhoto":
+                    setTimeout(() => askDocumentPhoto(chatId), 1000);
+                    break;
+                case "selfie":
+                    setTimeout(() => askSelfie(chatId), 1000);
+                    break;
+                case "done":
+                    setTimeout(async () => await sendPendingDocumentMessage(chatId, user), 1000);
+                    break;
             }
-
             return;
         }
 
+        // Si viene número de teléfono en payload
         if (phone) {
             await User.findOneAndUpdate(
                 { userId: msg.from?.id },
-                { phoneNumber: phone, userName: msg.from?.username, userId: msg.from?.id },
+                { phoneNumber: phone, userName, userId: msg.from?.id },
                 { upsert: true }
             );
         }
 
-        sendPrivacyPolicy(chatId, msg.from?.first_name || msg.from?.username);
+        // Enviar términos y condiciones
+        sendPrivacyPolicy(chatId, userName);
     });
 }
 
-bot.on('callback_query', async (callbackQuery) => {
-    const msg = callbackQuery.message;
+// Manejador de callback queries
+bot.on('callback_query', async callbackQuery => {
+    const msg = callbackQuery.message!;
     const chatId = msg.chat.id;
-    const data = callbackQuery.data;
+    const data = callbackQuery.data || '';
 
     if (data.startsWith('mostrar_documento_')) {
         const userId = data.replace('mostrar_documento_', '');
         const user = await User.findOne({ userId: parseInt(userId) });
 
-        if (user && user.token && user.documentUrl) {
-            const token = user.token;
-            const documentName = user.documentName || "Documento";
-            const documentUrl = user.documentUrl;
-            const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(token)}`;
-            await bot.sendMessage(chatId, `Este será el documento que vas a firmar: *${documentName}*\n\nfirmalo aquí: [Ver documento](${docLink})`,
-                { parse_mode: "Markdown" }
+        if (user?.token && user.documentUrl) {
+            const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(user.token)}`;
+            await bot.sendMessage(chatId,
+                `Documento: *${user.documentName || 'Documento'}*\n[Firma aquí](${docLink})`,
+                { parse_mode: 'Markdown' }
             );
-
-            if (documentUrl) {
-                await bot.sendDocument(chatId, documentUrl, {}, { filename: documentName });
-            }
+            await bot.sendDocument(chatId, user.documentUrl, {}, { filename: user.documentName });
         } else {
-            await bot.sendMessage(chatId, "No se encontró el documento para firmar.");
+            await bot.sendMessage(chatId, 'No se encontró el documento para firmar.');
         }
         await bot.answerCallbackQuery(callbackQuery.id);
     }
