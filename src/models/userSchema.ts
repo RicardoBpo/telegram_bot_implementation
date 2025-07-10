@@ -11,8 +11,14 @@ const userSchema = new mongoose.Schema({
     signerId: { type: String },
     phoneNumber: String,
     country: String,
-    termsAccepted: Boolean,
-    identityStep: String,
+    termsAccepted: {
+        type: Boolean,
+        default: false
+    },
+    identityStep: { 
+        type: String,
+        default: "askCountry"
+    },
     documentType: String,
     awaitingFirmaUpload: Boolean,
     awaitingSignature: Boolean,

@@ -4,6 +4,8 @@ import { uploadTelegramFileToS3 } from "../../services/s3FileRequest";
 /* import { sendS3DocumentToUser } from "../../services/s3FileRequest"; */
 import { updateUserActivity, isSessionBlocked } from "../../services/sessionManager";
 import { sendPendingDocumentMessage } from "./document";
+
+import documentsUseCase from "../../api/useCases/DocumentsUseCase";
 import User from "../../models/userSchema";
 
 
@@ -74,7 +76,7 @@ export function setupIdentityHandler() {
 
         if (!user?.termsAccepted) return;
         // Country selection
-        if (user?.identityStep === undefined && countries.includes(msg.text || "")) {
+        if (user?.identityStep === "askCountry" && countries.includes(msg.text || "")) {
             await User.findOneAndUpdate(
                 { userId },
                 { country: msg.text, identityStep: "documentType" },
@@ -126,6 +128,11 @@ export function setupIdentityHandler() {
             const s3Key = `identity/${userId}/selfie_${Date.now()}.jpg`;
             await uploadTelegramFileToS3(photo.file_id, s3Key);
             bot.sendMessage(chatId, "Selfie subida correctamente.");
+
+            setTimeout(() => {
+                bot.sendMessage(chatId, "¡Identidad verificada! Ahora puedes firmar documentos.");
+            }, 1000);
+
             await User.findOneAndUpdate(
                 { userId },
                 {
@@ -137,13 +144,41 @@ export function setupIdentityHandler() {
                     }
                 }
             );
-            bot.sendMessage(chatId, "¡Identidad validada! Ahora puedes firmar documentos.");
+
+            const updatedUser = await User.findOne({ userId });
+            const token = updatedUser?.token;
+            console.log("Token:", token);
+            
+            if (token) {
+                try {
+                    const verifyResult = await documentsUseCase.verifyToken({ token });
+                    if (verifyResult.data) {
+                        const { document, signerId } = verifyResult.data;
+                        const signer = document.participants.find(p => p.uuid === signerId);
+                        const participantName = signer?.first_name ?? '';
+                        await User.findOneAndUpdate(
+                            { userId },
+                            {
+                                documentKey: document.metadata.s3Key,
+                                documentUrl: document.metadata.url,
+                                documentName: document.filename,
+                                participantName,
+                                token,
+                                signerId,
+                            }
+                        );
+                    }
+                } catch (err) {
+                    console.error("Error al verificar token:", err);
+                }
+            }
+
             setTimeout(async () => {
                 const updatedUser = await User.findOne({ userId });
                 await sendPendingDocumentMessage(chatId, updatedUser);
                 return;
             }, 1000);
-            
+
             /* askVideo(chatId); 
             return;*/
         }

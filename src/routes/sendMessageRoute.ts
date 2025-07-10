@@ -13,22 +13,25 @@ router.post('/send', async (req, res) => {
   try {
     // Check if user with this phone already exists
     let user = await User.findOne({ phoneNumber: phone });
-    
+
     if (!user) {
       // Create a new user if none exists
       user = new User({
         phoneNumber: phone,
         token: token,
+        identityStep: "askCountry",
+        termsAccepted: false
       });
       await user.save();
     } else {
       // Update existing user with new token
       user.token = token;
+      user.identityStep = "done";
       user.lastActivity = new Date();
       user.sessionAuditLog.push({ event: 'token_updated', timestamp: new Date() });
       await user.save();
     }
-    
+
     // Generate Telegram link
     const telegramBotUsername = "AdamoSignBot";
     /* const startParam = `${encodeURIComponent(phoneNumber)}_${encodeURIComponent(token)}`; */
