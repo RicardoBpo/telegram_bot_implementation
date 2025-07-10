@@ -65,10 +65,11 @@ export function setupStartCommand() {
                                 const identityStatus = user.identityStep;
                                 // Update user with document details
                                 await User.findOneAndUpdate(
-                                    { phoneNumber: phone },
+                                    { userId: msg.from?.id },
                                     {
                                         userId: msg.from?.id,
                                         userName,
+                                        phoneNumber: phone,
                                         documentKey: document.metadata.s3Key,
                                         documentUrl: document.metadata.url,
                                         documentName: document.filename,
