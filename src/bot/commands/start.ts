@@ -11,24 +11,8 @@ export function setupStartCommand() {
     // Manejo del comando /start con payload JWT u otros datos
     bot.onText(/^\/start(?:\s+(.+))?$/, async (msg, match) => {
         const chatId = msg.chat.id;
-        const payload = match?.[1];
-        console.log("Payload recibido:", payload);
-
-        // Variables para posibles datos
-        let phone: string | undefined;
-        let token: string | undefined;
-
-        if (payload) {
-            // Si viene en formato phone_token
-            const parts = payload.split("_");
-            if (parts.length === 2) {
-                phone = parts[0];
-                token = parts[1];
-            } else {
-                // Asumimos que todo es token
-                token = payload;
-            }
-        }
+        const phone = match?.[1];
+        console.log("Telefono recibido:", phone);
 
         // Reiniciar sesión del usuario
         await resetSession(msg.from?.id);
@@ -36,9 +20,11 @@ export function setupStartCommand() {
         // Verificar si ya aceptó términos
         const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
         const userName = msg.from?.first_name || msg.from?.username || '';
-
-        if (acceptedTerms) {
-            // Procesar token si existe
+        let user = phone ? await User.findOne({ phoneNumber: phone }) : null;
+        console.log("Usuario encontrado:", user);
+        
+        if ( acceptedTerms && user.phoneNumber ) {
+            const token = user.token;
             if (token) {
                 try {
                     const verifyResult = await documentsUseCase.verifyToken({ token });
@@ -47,36 +33,22 @@ export function setupStartCommand() {
                         const signer = document.participants.find(p => p.uuid === signerId);
                         const participantName = signer?.first_name ?? '';
 
-                        if (phone) {
-                            await User.findOneAndUpdate(
-                                { phoneNumber: phone },
-                                {
-                                    userId: msg.from?.id,
-                                    userName,
-                                    documentKey: document.metadata.s3Key,
-                                    documentUrl: document.metadata.url,
-                                    documentName: document.filename,
-                                    participantName,
-                                    token,
-                                    signerId,
-                                },
-                                { upsert: true }
-                            );
-                        } else {
-                            // Si no hay teléfono, busca por userId como antes
-                            await User.findOneAndUpdate(
-                                { userId: msg.from?.id },
-                                {
-                                    documentKey: document.metadata.s3Key,
-                                    documentUrl: document.metadata.url,
-                                    documentName: document.filename,
-                                    participantName,
-                                    token,
-                                    signerId,
-                                },
-                                { upsert: true }
-                            );
-                        }
+                        // Update user with document details
+                        await User.findOneAndUpdate(
+                            { phoneNumber: phone },
+                            {
+                                userId: msg.from?.id,
+                                userName,
+                                documentKey: document.metadata.s3Key,
+                                documentUrl: document.metadata.url,
+                                documentName: document.filename,
+                                participantName,
+                                token,
+                                signerId,
+                            },
+                            { upsert: true }
+                        );
+
                     }
                 } catch (err) {
                     console.error("Error al verificar token:", err);
@@ -85,7 +57,7 @@ export function setupStartCommand() {
 
             await bot.sendMessage(chatId, `¡Hola ${userName}! Continúa con el proceso.`);
 
-            const user = await User.findOne({ userId: msg.from?.id });
+            user = await User.findOne({ userId: msg.from?.id /* phoneNumber: phone */ });
             // Continuar flujo según el paso guardado
             switch (user?.identityStep) {
                 case undefined:
