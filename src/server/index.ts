@@ -42,7 +42,7 @@ app.post('/start', async (req, res) => {
   }
 });
 
-app.use('/send-info', sendMessageRoute);
+app.use('/', sendMessageRoute);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../index.html'));

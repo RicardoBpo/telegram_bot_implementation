@@ -19,13 +19,13 @@ bot.onText(/\/start/, (msg) => {
  */
 import "./server";
 import { setupStartCommand } from "./bot/commands/start";
-import { setupTermsHandler } from "./bot/handlers/terms";
+/* import { setupTermsHandler } from "./bot/handlers/terms"; */
 import { setupIdentityHandler } from "./bot/handlers/identity";
 import { setupSignatureHandler } from "./bot/handlers/signature";
 
 // Initialize bot
 setupStartCommand();
-setupTermsHandler();
+//setupTermsHandler();
 setupIdentityHandler();
 setupSignatureHandler();
 

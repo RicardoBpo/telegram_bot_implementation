@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { bot } from '../bot/index'; 
 import User from '../models/userSchema';
 
 const router = Router();
@@ -43,5 +44,40 @@ router.post('/send', async (req, res) => {
     return res.status(500).json({ success: false, message: 'Error al guardar los datos' });
   }
 });
+
+router.post('/signed', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ success: false, message: 'Datos inválidos' });
+  }
+
+  try {
+    // Check if user with this phone exists
+    const user = await User.findOne({ token });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    // Update user as signed
+    user.identityStep = "signed";
+    user.lastActivity = new Date();
+    user.sessionAuditLog.push({ event: 'signed', timestamp: new Date() });
+    await user.save();
+
+     if (user.userId) {
+      await bot.sendMessage(
+        user.userId,
+        "✅ ¡Documento firmado correctamente! Gracias por usar Adamo ign."
+      );
+    }
+
+    return res.json({ success: true, message: 'Estado actualizado' });
+  } catch (error) {
+    console.error('Database error:', error);
+    return res.status(500).json({ success: false, message: 'Error al actualizar estado' });
+  }
+})
 
 export default router;
