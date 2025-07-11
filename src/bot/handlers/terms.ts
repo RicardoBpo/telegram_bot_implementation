@@ -35,7 +35,11 @@ export function setupTermsHandler() {
 
             await User.findOneAndUpdate(
                 { userId },
-                { userName: username, userId, termsAccepted: true },
+                {
+                    userName: username,
+                    userId,
+                    termsAccepted: true
+                },
                 { upsert: true }
             );
 
@@ -46,7 +50,7 @@ export function setupTermsHandler() {
         } else if (data === "privacidad_rechazar") {
             await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId });
             await bot.editMessageText("No puedes continuar sin aceptar las políticas de privacidad.", { chat_id: chatId, message_id: messageId });
-            
+
             const startAgain = "Quieres volver a intentarlo?";
             await bot.sendMessage(chatId, startAgain, {
                 reply_markup: {
@@ -55,10 +59,10 @@ export function setupTermsHandler() {
                     ]
                 }
             });
-            
+
         } else if (data === "volver_a_intentar") {
             sendPrivacyPolicy(chatId, username);
-        }; 
+        };
         await bot.answerCallbackQuery(query.id);
     });
 }

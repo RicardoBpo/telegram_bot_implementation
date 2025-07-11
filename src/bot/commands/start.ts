@@ -10,7 +10,6 @@ import documentsUseCase from "../../api/useCases/DocumentsUseCase";
 export function setupStartCommand() {
     // Manejo del comando /start con payload JWT u otros datos
     bot.onText(/^\/start(?:\s+(.+))?$/, async (msg, match) => {
-        const tokenSigned = match?.[1] || '';
         const chatId = msg.chat.id;
         const phone = match?.[1];
         const userName = msg.from?.first_name || msg.from?.username || '';
@@ -20,7 +19,7 @@ export function setupStartCommand() {
 
         console.log("Telefono recibido:", phone);
 
-        if(!phone || !token) {
+        if (!phone || !token) {
             bot.sendMessage(
                 chatId,
                 `¡Hola ${userName}! Parece que no tienes un número de teléfono o docuemnto asociado para iniciar el proceso. \n\nInicia el proceso desde el link que te ha llegado a tu telefono.`
@@ -28,13 +27,20 @@ export function setupStartCommand() {
             return;
         }
 
+        
         // Reiniciar sesión del usuario
         await resetSession(msg.from?.id);
 
         console.log("token: ", token);
-        
-        if (acceptedTerms && user.phoneNumber) {
 
+
+        if (acceptedTerms && user.phoneNumber) {
+            await User.findOneAndUpdate({
+                userId: msg.from?.id
+            }, {
+                token,
+                phoneNumber: phone,
+            })
             await bot.sendMessage(chatId, `¡Hola ${userName}! Continúa con el proceso.`);
 
             user = await User.findOne({ userId: msg.from?.id /* phoneNumber: phone */ });
@@ -53,8 +59,8 @@ export function setupStartCommand() {
                     setTimeout(() => askSelfie(chatId), 1000);
                     break;
                 case "done":
-                console.log("Token:", token);
-                
+                    console.log("Token:", token);
+
                     if (token) {
                         try {
                             const verifyResult = await documentsUseCase.verifyToken({ token });
