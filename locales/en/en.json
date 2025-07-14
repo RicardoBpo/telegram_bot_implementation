@@ -1,0 +1,29 @@
+{
+    "no_phone_or_document": "Hi {{userName}}! It seems you don't have a phone number or document associated to start the process.\n\nPlease use the link sent to your phone to begin.",
+    "continue_process": "Hi {{userName}}! Continue with the process.",
+    "document_signed": "Document signed successfully!",
+    "invalid_link": "Invalid link.",
+    "privacy_required": "You cannot continue without accepting the privacy policies.",
+    "try_again": "Do you want to try again?",
+    "retry_button": "🔄 Try again",
+    "document_not_found": "Document not found for signing.",
+    "document_link_message": "Document: *{{documentName}}*\nClick the link below to sign\n\n[Sign here]({{link}})",
+    "privacy_policy": {
+        "message": "👋 Hi {{userName}}! Welcome to the AdamoSign bot.\n\n🔒 *Privacy Policy*\n\nBy continuing, you accept our [privacy policy]({{link}}). Do you want to proceed?",
+        "accept_button": "✅ Accept",
+        "reject_button": "❌ Reject"
+    },
+    "identity_step": {
+        "session_closed": "Your session was closed due to inactivity. Please start again with /start.",
+        "select_country": "First, I'd like to know where you live!",
+        "select_document_type": "Please select the type of document you'd like to verify:",
+        "upload_document_photo": "Please upload a photo of your ID document.",
+        "upload_selfie": "Now upload a selfie (a photo of your face).",
+        "invalid_document_photo": "Please upload a *photo* of your document, not text.",
+        "document_uploaded": "Document uploaded successfully.",
+        "invalid_selfie": "Please upload a *selfie* (photo), not text.",
+        "selfie_uploaded": "Selfie uploaded successfully.",
+        "identity_verified": "Identity verified! You can now sign documents.",
+        "country_selected": "Selected country: {{country}}."
+    }
+}
