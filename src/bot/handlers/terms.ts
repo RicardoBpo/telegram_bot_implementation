@@ -3,7 +3,10 @@ import { bot } from "../index";
 import { askCountry } from "./identity";
 import User from "../../models/userSchema";
 
-
+/* 
+    FLOW IMPLEMENTED ON start.ts TO HANDLE TOKEN VERIFICATION
+    THE setupTermsHandler is not being called in app.ts
+*/
 export function sendPrivacyPolicy(chatId: number, userName: string) {
     const policies = `👋 ¡Hola ${userName}! Bienvenido al bot de AdamoSign.\n\n🔒 *Políticas de Privacidad*\n\nAl continuar, aceptas nuestras [políticas de privacidad](https://adamo-resources.s3.us-east-2.amazonaws.com/public/ADAMO_ID.pdf). ¿Deseas continuar?`;
     bot.sendMessage(chatId, policies, {

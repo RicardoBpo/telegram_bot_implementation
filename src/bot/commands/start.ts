@@ -3,19 +3,22 @@ import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../han
 import { resetSession } from "../../services/sessionManager";
 import { sendPendingDocumentMessage } from "../handlers/document";
 import User from "../../models/userSchema";
-import documentsUseCase from "../../api/useCases/DocumentsUseCase";
+//import documentsUseCase from "../../api/useCases/DocumentsUseCase";
+import i18next from "i18next";
 
 // Políticas de privacidad
+
 function sendPrivacyPolicy(chatId: number, userName: string) {
-    const policies = `👋 ¡Hola ${userName}! Bienvenido al bot de AdamoSign.\n\n🔒 *Políticas de Privacidad*\n\nAl continuar, aceptas nuestras [políticas de privacidad](https://adamo-resources.s3.us-east-2.amazonaws.com/public/ADAMO_ID.pdf). ¿Deseas continuar?`;
+    const link = "https://adamo-resources.s3.us-east-2.amazonaws.com/public/ADAMO_ID.pdf";
+    const policies = i18next.t('privacy_policy.message', { userName, link });
     bot.sendMessage(chatId, policies, {
         parse_mode: "Markdown",
         disable_web_page_preview: true,
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: "✅ Aceptar", callback_data: "privacidad_aceptar" },
-                    { text: "❌ Rechazar", callback_data: "privacidad_rechazar" }
+                    { text: i18next.t('privacy_policy.accept_button'), callback_data: "privacidad_aceptar" },
+                    { text: i18next.t('privacy_policy.reject_button'), callback_data: "privacidad_rechazar" }
                 ]
             ]
         }
@@ -25,105 +28,70 @@ function sendPrivacyPolicy(chatId: number, userName: string) {
 export function setupStartCommand() {
     // Manejo del comando /start con payload JWT u otros datos
     bot.onText(/^\/start(?:\s+(.+))?$/, async (msg, match) => {
-        /* const tokenSigned = match?.[1] || ''; */
+
+        //Detect user language
+        const lang = msg.from?.language_code?.split('-')[0] || 'es';
+        await i18next.changeLanguage(lang);
+
         const chatId = msg.chat.id;
-        const phone = match?.[1];
+        const payload = match?.[1] || '';
         const userName = msg.from?.first_name || msg.from?.username || '';
-        let user = phone ? await User.findOne({ phoneNumber: phone }) : null;
-        const token = user?.token;
 
-        console.log("Telefono recibido:", phone);
+        // Detect if is phone (numbers) or token (JWT)
+        const isPhone = /^\d{7,15}$/.test(payload);
+        const isToken = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(payload);
 
-        if (!phone || !token) {
-            bot.sendMessage(
-                chatId,
-                `¡Hola ${userName}! Parece que no tienes un número de teléfono o documento asociado para iniciar el proceso. \n\nInicia el proceso desde el link que te ha llegado a tu telefono.`
+        if (isPhone) {
+            console.log('Teléfono recibido:', payload);
+            let user = await User.findOne({ phoneNumber: payload });
+            const token = user?.token;
+            if (!user || !token) {
+                bot.sendMessage(
+                    chatId,
+                    i18next.t('no_phone_or_document', { userName}),
+                );
+                return;
+            }
+            await User.findOneAndUpdate(
+                { userId: msg.from?.id },
+                { userName, userId: msg.from?.id, phoneNumber: payload, token },
+                { upsert: true }
             );
-            return;
-        }
-
-        await User.findOneAndUpdate(
-            { userId: msg.from?.id },
-            { userName, userId: msg.from?.id, phoneNumber: phone, token },
-            { upsert: true }
-        );
-
-
-        // Reiniciar sesión del usuario
-        await resetSession(msg.from?.id);
-
-        console.log("token: ", token);
-
-        // Validar términos aceptados
-        const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
-
-        if (!acceptedTerms) {
-            sendPrivacyPolicy(chatId, userName);
-            return;
-        }
-
-        if (user.phoneNumber) {
-            await bot.sendMessage(chatId, `¡Hola ${userName}! Continúa con el proceso.`);
-
-            user = await User.findOne({ userId: msg.from?.id });
-            // Continuar flujo según el paso guardado
-            switch (user?.identityStep) {
-                case "askCountry":
-                    setTimeout(() => askCountry(chatId), 1000);
-                    break;
-                case "documentType":
-                    setTimeout(() => askDocumentType(chatId), 1000);
-                    break;
-                case "documentPhoto":
-                    setTimeout(() => askDocumentPhoto(chatId), 1000);
-                    break;
-                case "selfie":
-                    setTimeout(() => askSelfie(chatId), 1000);
-                    break;
-                case "done":
-                    console.log("Token:", token);
-
-                    if (token) {
-                        try {
-                            const verifyResult = await documentsUseCase.verifyToken({ token });
-                            if (verifyResult.data) {
-                                const { document, signerId } = verifyResult.data;
-                                const signer = document.participants.find(p => p.uuid === signerId);
-                                const participantName = signer?.first_name ?? '';
-                                const identityStatus = user.identityStep;
-                                // Update user with document details
-                                await User.findOneAndUpdate(
-                                    { userId: msg.from?.id },
-                                    {
-                                        userId: msg.from?.id,
-                                        userName,
-                                        phoneNumber: phone,
-                                        documentKey: document.metadata.s3Key,
-                                        documentUrl: document.metadata.url,
-                                        documentName: document.filename,
-                                        identityStep: identityStatus,
-                                        participantName,
-                                        token,
-                                        signerId,
-                                    },
-                                    { upsert: true }
-                                );
-                            }
-                            console.log("Usuario encontrado:", user);
-                        } catch (err) {
-                            console.error("Error al verificar token:", err);
-                        }
-                    }
-                    setTimeout(async () => await sendPendingDocumentMessage(chatId, user), 1000);
-                    break;
+            await resetSession(msg.from?.id);
+            const acceptedTerms = await User.findOne({ userId: msg.from?.id, termsAccepted: true });
+            if (!acceptedTerms) {
+                sendPrivacyPolicy(chatId, userName);
+                return;
+            }
+            if (user.phoneNumber) {
+                await bot.sendMessage(chatId, i18next.t('continue_process', { userName }));
+                user = await User.findOne({ userId: msg.from?.id });
+                switch (user?.identityStep) {
+                    case "askCountry":
+                        setTimeout(() => askCountry(chatId), 1000);
+                        break;
+                    case "documentType":
+                        setTimeout(() => askDocumentType(chatId), 1000);
+                        break;
+                    case "documentPhoto":
+                        setTimeout(() => askDocumentPhoto(chatId), 1000);
+                        break;
+                    case "selfie":
+                        setTimeout(() => askSelfie(chatId), 1000);
+                        break;
+                    default:
+                        sendPendingDocumentMessage(chatId, user);
+                }
             }
             return;
+        } else if (isToken) {
+            console.log('Token recibido:', payload);
+            // ...lógica de finalización con token...
+            bot.sendMessage(chatId, i18next.t('document_signed'));
+            return;
         } else {
-            bot.sendMessage(
-                chatId,
-                `¡Hola ${userName}! Parece que no tienes un número de teléfono asociado para iniciar el proceso.
-                Inicia el proceso desde el link que te ha llegado a tu telefono.`
-            );
+            console.log('Parámetro desconocido recibido en /start:', payload);
+            bot.sendMessage(chatId, i18next.t('invalid_link'));
             return;
         }
     });
@@ -137,8 +105,8 @@ export function setupStartCommand() {
         const username = callbackQuery.from.username;
         const user = await User.findOne({ userId });
         const token = user?.token;
-        console.log("tojen:", token);
-        
+        console.log("token: ", token);
+
         // Términos de privacidad
         if (data === "privacidad_aceptar") {
             await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: msg.message_id });
@@ -155,13 +123,13 @@ export function setupStartCommand() {
 
         } else if (data === "privacidad_rechazar") {
             await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: msg.message_id });
-            await bot.editMessageText("No puedes continuar sin aceptar las políticas de privacidad.", { chat_id: chatId, message_id: msg.message_id });
+            await bot.editMessageText(i18next.t('privacy_required'), { chat_id: chatId, message_id: msg.message_id });
 
-            const startAgain = "¿Quieres volver a intentarlo?";
+            const startAgain = i18next.t('try_again');
             await bot.sendMessage(chatId, startAgain, {
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: "🔄 Volver a intentarlo", callback_data: "volver_a_intentar" }]
+                        [{ text: i18next.t('retry_button'), callback_data: "volver_a_intentar" }]
                     ]
                 }
             });
@@ -176,14 +144,16 @@ export function setupStartCommand() {
             const userDoc = await User.findOne({ userId: parseInt(userIdDoc) });
 
             if (userDoc?.token && userDoc.documentUrl) {
-                const docLink = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(userDoc.token)}`;
+                const link = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(userDoc.token)}`;
+                const documentName = userDoc.documentName || 'Documento';
                 await bot.sendMessage(chatId,
-                    `Documento: *${userDoc.documentName || 'Documento'}*\nIngresa al siguiente link para firmar el documento\n\n[Firma aquí](${docLink})`,
+                    i18next.t('document_link_message', {documentName, link}),
                     { parse_mode: 'Markdown' }
                 );
                 await bot.sendDocument(chatId, userDoc.documentUrl, {}, { filename: userDoc.documentName });
+
             } else {
-                await bot.sendMessage(chatId, 'No se encontró el documento para firmar.');
+                await bot.sendMessage(chatId, i18next.t('document_not_found'));
             }
         }
         await bot.answerCallbackQuery(callbackQuery.id);

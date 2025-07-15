@@ -66,14 +66,14 @@ router.post('/signed', async (req, res) => {
     user.sessionAuditLog.push({ event: 'signed', timestamp: new Date() });
     await user.save();
 
-     if (user.userId) {
+    if (user.userId) {
       await bot.sendMessage(
         user.userId,
         "✅ ¡Documento firmado correctamente! Gracias por usar Adamo ign."
       );
     }
 
-    return res.json({ success: true, message: 'Estado actualizado' });
+    return res.json({ success: true, message: 'Estado actualizado', to: user.userId });
   } catch (error) {
     console.error('Database error:', error);
     return res.status(500).json({ success: false, message: 'Error al actualizar estado' });

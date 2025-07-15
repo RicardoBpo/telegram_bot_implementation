@@ -1,5 +1,6 @@
 import User from "../models/userSchema";
 import { bot } from "../bot";
+import i18next from "i18next";
 
 type TimerRefs = {
     warning?: NodeJS.Timeout;
@@ -16,7 +17,6 @@ export async function updateUserActivity(userId: number, chatId: number) {
     // Update last activity timestamp
     await User.findOneAndUpdate({ userId }, { lastActivity: new Date() });
 
-    // If the user is blocked, do not set new timers
     const user = await User.findOne({ userId });
     if (user?.sessionBlocked) return;
 
@@ -28,7 +28,7 @@ export async function updateUserActivity(userId: number, chatId: number) {
     */
     timers[userId] = {
         warning: setTimeout(async () => {
-            await bot.sendMessage(chatId, "¿Sigues ahí? Por favor responde para continuar.");
+            await bot.sendMessage(chatId, i18next.t("session_mannager.session_warning"));
         }, 5 * 60 * 1000),
         close: setTimeout(async () => {
             await handleSessionTimeout(userId, chatId);
@@ -37,7 +37,7 @@ export async function updateUserActivity(userId: number, chatId: number) {
 }
 
 async function handleSessionTimeout(userId: number, chatId: number) {
-    await bot.sendMessage(chatId, "Hemos cerrado esta sesión por inactividad. Para continuar, inicia el proceso nuevamente.");
+    await bot.sendMessage(chatId, i18next.t("session_mannager.session_closed"));
     await User.findOneAndUpdate(
         { userId },
         {

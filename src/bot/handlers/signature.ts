@@ -6,6 +6,7 @@ import { finalConfirmation } from "./final";
 import { updateUserActivity, isSessionBlocked } from "../../services/sessionManager";
 /* import { finalConfirmation } from "./final"; */
 import { /* getSignedDocumentUrl, */ sendS3DocumentToUser, uploadTelegramFileToS3 } from "../../services/s3FileRequest";
+import i18next from "i18next";
 
 const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`;
 
@@ -34,14 +35,14 @@ export function setupSignatureHandler() {
         if (!data || !chatId || !userId) return;
 
         if (isSessionBlocked(user)) {
-            bot.sendMessage(chatId, "Tu sesión fue cerrada por inactividad. Por favor, inicia el proceso de nuevo con /start.");
+            bot.sendMessage(chatId, i18next.t("identity_step.session_closed"));
             return;
         }
 
         await updateUserActivity(userId, chatId);
 
         if (data === "firmar_si") {
-            await bot.sendMessage(chatId, "Por favor, sube una foto de tu firma.");
+            await bot.sendMessage(chatId, i18next.t("signature_step.upload_signature_prompt"));
             await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: true });
             await bot.answerCallbackQuery(query.id);
             return;
@@ -49,28 +50,28 @@ export function setupSignatureHandler() {
 
         if (data === "firma_rechazar") {
             const docName = "documento.pdf"; // Insert filename logic here
-            await bot.sendMessage(chatId, `Has rechazado firmar el documento 📄 ${docName}.`);
+            await bot.sendMessage(chatId, i18next.t("signature_step.rejected", { docName }));
             await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
             await bot.answerCallbackQuery(query.id);
             return;
         }
 
         if (data === "enviar_firmado_si") {
-            await bot.sendMessage(chatId, "¡Documento firmado y enviado exitosamente! 🎉");
+            await bot.sendMessage(chatId, i18next.t("signature_step.signed_success"));
             await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
             await bot.answerCallbackQuery(query.id);
             return;
         }
 
         if (data === "enviar_firmado_no") {
-            await bot.sendMessage(chatId, "El envío del documento firmado ha sido cancelado.");
+            await bot.sendMessage(chatId, i18next.t("signature_step.cancelled_send"));
             await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
             await bot.answerCallbackQuery(query.id);
             return;
         }
 
         if (data === "enviar_firmado_si") {
-            await bot.sendMessage(chatId, "¡Documento firmado y enviado exitosamente! 🎉");
+            await bot.sendMessage(chatId, i18next.t("signature_step.signed_success"));
             await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
             await finalConfirmation(chatId); 
             await bot.answerCallbackQuery(query.id);
@@ -78,7 +79,7 @@ export function setupSignatureHandler() {
         }
 
         if (data === "enviar_firmado_no") {
-            await bot.sendMessage(chatId, "El envío del documento firmado ha sido cancelado.");
+            await bot.sendMessage(chatId, i18next.t("signature_step.cancelled_send"));
             await User.findOneAndUpdate({ userId }, { awaitingFirmaUpload: false });
             await finalConfirmation(chatId);
             await bot.answerCallbackQuery(query.id);
@@ -103,14 +104,14 @@ export function setupSignatureHandler() {
         const s3Key = `_assets/docs/twilio-media/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${extension}`;
         await uploadTelegramFileToS3(photo.file_id, s3Key);
 
-        await bot.sendMessage(chatId, "Este es tu documento firmado:");
+        await bot.sendMessage(chatId, i18next.t("signature_step.signed_preview"));
         await sendS3DocumentToUser(chatId, S3_DOC_KEY, "documento_firmado.pdf");
 
-        await bot.sendMessage(chatId, "¿Quieres enviarlo?", {
+        await bot.sendMessage(chatId, i18next.t("signature_step.send_question"), {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "✅ Sí, enviar", callback_data: "enviar_firmado_si" }],
-                    [{ text: "❌ No enviar", callback_data: "enviar_firmado_no" }]
+                    [{ text: i18next.t("signature_step.send_yes"), callback_data: "enviar_firmado_si" }],
+                    [{ text: i18next.t("signature_step.send_no"), callback_data: "enviar_firmado_no" }]
                 ]
             }
         });

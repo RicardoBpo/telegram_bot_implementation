@@ -5,22 +5,18 @@ import { uploadTelegramFileToS3 } from "../../services/s3FileRequest";
 import { updateUserActivity, isSessionBlocked } from "../../services/sessionManager";
 import { sendPendingDocumentMessage } from "./document";
 
+import i18next from "i18next";
 import documentsUseCase from "../../api/useCases/DocumentsUseCase";
 import User from "../../models/userSchema";
 
 
 const countries = ["🇲🇽 México", "🇨🇴 Colombia", "🇦🇷 Argentina", "🇧🇷 Brasil"];
-const documents = [
-    "Cedula de Ciudadanía",
-    "Cédula de Extranjería",
-    "Pasaporte",
-    "Licencia de Conducir"
-];
+
 
 /* const S3_DOC_KEY = `_assets/docs/telegram_test_doc.pdf`; */
 
 export function askCountry(chatId: number) {
-    bot.sendMessage(chatId, "Primero me gustaría saber en dónde vives!:", {
+    bot.sendMessage(chatId, i18next.t("identity_step.select_country"), {
         reply_markup: {
             keyboard: [countries],
             one_time_keyboard: true,
@@ -30,7 +26,13 @@ export function askCountry(chatId: number) {
 }
 
 export function askDocumentType(chatId: number) {
-    bot.sendMessage(chatId, "Por favor, selecciona el tipo de documento que deseas verificar:", {
+    const documents = [
+        i18next.t("identity_step.documents.cc"),
+        i18next.t("identity_step.documents.ce"),
+        i18next.t("identity_step.documents.passport"),
+        i18next.t("identity_step.documents.license"),
+    ];
+    bot.sendMessage(chatId, i18next.t("identity_step.select_document_type"), {
         reply_markup: {
             keyboard: documents.map(doc => [doc]),
             one_time_keyboard: true,
@@ -40,11 +42,10 @@ export function askDocumentType(chatId: number) {
 }
 
 export function askDocumentPhoto(chatId: number) {
-    bot.sendMessage(chatId, "Por favor, sube una foto de tu documento de identidad.");
+    bot.sendMessage(chatId, i18next.t("identity_step.upload_document_photo"));
 }
-
 export function askSelfie(chatId: number) {
-    bot.sendMessage(chatId, "Ahora sube una selfie (foto de tu rostro).");
+    bot.sendMessage(chatId, i18next.t("identity_step.upload_selfie"));
 }
 
 /* function askVideo(chatId: number) {
@@ -65,9 +66,19 @@ export function setupIdentityHandler() {
         const chatId = msg.chat.id;
         const userId = msg.from?.id;
         const user = await User.findOne({ userId });
+        const documents = [
+            i18next.t("identity_step.documents.cc"),
+            i18next.t("identity_step.documents.ce"),
+            i18next.t("identity_step.documents.passport"),
+            i18next.t("identity_step.documents.license"),
+        ];
+
+        //Detect user language
+        const lang = msg.from?.language_code?.split('-')[0] || 'es';
+        await i18next.changeLanguage(lang);
 
         if (isSessionBlocked(user)) {
-            bot.sendMessage(chatId, "Tu sesión fue cerrada por inactividad. Por favor, inicia el proceso de nuevo con /start.");
+            bot.sendMessage(chatId, i18next.t("identity_step.session_closed"));
             return;
         }
 
@@ -82,7 +93,7 @@ export function setupIdentityHandler() {
                 { country: msg.text, identityStep: "documentType" },
                 { upsert: true }
             );
-            bot.sendMessage(chatId, `País seleccionado: ${msg.text}.`, {
+            bot.sendMessage(chatId, i18next.t("identity_step.country_selected", { country: msg.text }), {
                 reply_markup: { remove_keyboard: true }
             });
             askDocumentType(chatId);
@@ -103,13 +114,13 @@ export function setupIdentityHandler() {
         // Document photo
         if (user?.identityStep === "documentPhoto") {
             if (!msg.photo) {
-                bot.sendMessage(chatId, "Por favor, sube una *foto* de tu documento, no texto.", { parse_mode: "Markdown" });
+                bot.sendMessage(chatId, i18next.t('identity_step.invalid_document_photo'), { parse_mode: "Markdown" });
                 return;
             }
             const photo = msg.photo[msg.photo.length - 1];
             const s3Key = `identity/${userId}/document_${Date.now()}.jpg`;
             await uploadTelegramFileToS3(photo.file_id, s3Key);
-            bot.sendMessage(chatId, "Documento subido correctamente.");
+            bot.sendMessage(chatId, i18next.t("identity_step.document_uploaded"));
             await User.findOneAndUpdate(
                 { userId },
                 { identityStep: "selfie" }
@@ -127,10 +138,10 @@ export function setupIdentityHandler() {
             const photo = msg.photo[msg.photo.length - 1];
             const s3Key = `identity/${userId}/selfie_${Date.now()}.jpg`;
             await uploadTelegramFileToS3(photo.file_id, s3Key);
-            bot.sendMessage(chatId, "Selfie subida correctamente.");
+            bot.sendMessage(chatId, i18next.t("identity_step.selfie_uploaded"));
 
             setTimeout(() => {
-                bot.sendMessage(chatId, "¡Identidad verificada! Ahora puedes firmar documentos.");
+                bot.sendMessage(chatId, i18next.t("identity_step.identity_verified"));
             }, 1000);
 
             await User.findOneAndUpdate(
@@ -148,7 +159,7 @@ export function setupIdentityHandler() {
             const updatedUser = await User.findOne({ userId });
             const token = updatedUser?.token;
             console.log("Token:", token);
-            
+
             if (token) {
                 try {
                     const verifyResult = await documentsUseCase.verifyToken({ token });
