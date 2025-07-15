@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Verificación</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        p {
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #0088cc;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .submit-btn:hover {
+            background: #0066aa;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        
+        <h1>Iniciar Verificación</h1>
+        
+        <form id="phoneForm">
+            <div class="input-group">
+                <input type="text" id="phone" name="phone" placeholder="+57 300 123 4567" required>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="submitBtn">
+                Iniciar Proceso
+            </button>
+        </form>
+        
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('phoneForm');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            try {
+                const response = await fetch('/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phone: phone,
+                        platform: 'telegram'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Open Telegram
+                if (data.telegram_link) {
+                    window.open(data.telegram_link, '_blank');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('Error de conexión. Intenta nuevamente.', 'error');
+            }
+        });
+
+    </script>
+</body>
+</html>

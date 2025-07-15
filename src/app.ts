@@ -1,5 +1,5 @@
 
-/* Listen Msg's
+/*Listen Msg's
 const bot = new TelegramBot(TOKEN, { polling: true });
 
     bot.on("message", (msg) => {
@@ -17,16 +17,23 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, "¡Hola! Soy tu bot en TypeScript 🚀");
 });
  */
-
-
 import "./server";
 import { setupStartCommand } from "./bot/commands/start";
-import { setupFormFlow } from "./bot/handlers/forms";
-import { setupPrivacyButtons } from "./bot/handlers/callbacks/requestResponse";
-import { setupDocumentHandler } from "./bot/handlers/documents";
+/* import { setupTermsHandler } from "./bot/handlers/terms"; */
+import { setupIdentityHandler } from "./bot/handlers/identity";
+import { setupSignatureHandler } from "./bot/handlers/signature";
+import { setupSignedCommand } from "./bot/commands/signed";
+import { initI18n } from "./i18n/config";
+import "./i18n/config";
 
-// Initialize bot
-setupStartCommand();
-setupFormFlow();
-setupPrivacyButtons();
-setupDocumentHandler();
+(async () => {
+  await initI18n();
+
+  // ...existing code...
+  setupStartCommand();
+  setupSignedCommand();
+  //setupTermsHandler();
+  setupIdentityHandler();
+  setupSignatureHandler();
+})();
+

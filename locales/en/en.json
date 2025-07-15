@@ -1,0 +1,62 @@
+{
+    "no_phone_or_document": "Hi {{userName}}! It seems you don't have a phone number or document associated to start the process.\n\nPlease use the link sent to your phone to begin.",
+    "continue_process": "Hi {{userName}}! Continue with the process.",
+    "document_signed": "Document signed successfully!",
+    "invalid_link": "Invalid link.",
+    "privacy_required": "You cannot continue without accepting the privacy policies.",
+    "try_again": "Do you want to try again?",
+    "retry_button": "🔄 Try again",
+    "document_not_found": "Document not found for signing.",
+    "document_link_message": "Document: *{{documentName}}*\nClick the link below to sign\n\n[Sign here]({{link}})",
+    "privacy_policy": {
+        "message": "👋 Hi {{userName}}! Welcome to the AdamoSign bot.\n\n🔒 *Privacy Policy*\n\nBy continuing, you accept our [privacy policy]({{link}}). Do you want to proceed?",
+        "accept_button": "✅ Accept",
+        "reject_button": "❌ Reject"
+    },
+    "identity_step": {
+        "session_closed": "Your session was closed due to inactivity. Please start again with /start.",
+        "select_country": "First, I'd like to know where you live!",
+        "select_document_type": "Please select the type of document you'd like to verify:",
+        "upload_document_photo": "Please upload a photo of your ID document.",
+        "upload_selfie": "Now upload a selfie (a photo of your face).",
+        "invalid_document_photo": "Please upload a *photo* of your document, not text.",
+        "document_uploaded": "Document uploaded successfully.",
+        "invalid_selfie": "Please upload a *selfie* (photo), not text.",
+        "selfie_uploaded": "Selfie uploaded successfully.",
+        "identity_verified": "Identity verified! You can now sign documents.",
+        "country_selected": "Selected country: {{country}}.",
+        "documents": {
+            "cc": "National ID Card",
+            "ce": "Foreigner ID Card",
+            "passport": "Passport",
+            "license": "Driver's License"
+        }
+    },
+    "final": {
+        "message": "¡Process completed! Thank you for using Adamo Sign."
+    },
+    "signature_step": {
+        "session_closed": "Your session was closed due to inactivity. Please start the process again from the invitation link.",
+        "upload_signature_prompt": "Please upload a photo of your signature.",
+        "rejected": "You have declined to sign the document 📄 {{docName}}.",
+        "signed_success": "Document signed and sent successfully! 🎉",
+        "cancelled_send": "Sending of the signed document has been cancelled.",
+        "signed_preview": "Here is your signed document:",
+        "send_question": "Do you want to send it?",
+        "send_yes": "✅ Yes, send",
+        "send_no": "❌ Don’t send"
+    },
+    "show_document_step": {
+        "pending_doc": "You have a document pending signature",
+        "show_doc": "🔗 Show document to sign"
+    },
+    "signed_command": {
+        "missing_token": "Token not received. Please ensure the signing link is correct.",
+        "user_not_found": "User not found.",
+        "document_signed": "✅ Document successfully signed! Thank you for using Adamo Sign."
+    },
+    "session_mannager": {
+        "session_warning": "Are you still there? Please respond to continue.",
+        "session_closed": "We have closed this session due to inactivity. To continue, please start the process again."
+    }
+}
