@@ -3,7 +3,7 @@ import { askCountry, askDocumentType, askDocumentPhoto, askSelfie } from "../han
 import { resetSession } from "../../services/sessionManager";
 import { sendPendingDocumentMessage } from "../handlers/document";
 import User from "../../models/userSchema";
-//import documentsUseCase from "../../api/useCases/DocumentsUseCase";
+import documentsUseCase from "../../api/useCases/DocumentsUseCase";
 import i18next from "i18next";
 
 // Políticas de privacidad
@@ -39,7 +39,7 @@ export function setupStartCommand() {
 
         // Detect if is phone (numbers) or token (JWT)
         const isPhone = /^\d{7,15}$/.test(payload);
-        const isToken = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(payload);
+        const isSignedString = payload === "signed";
 
         if (isPhone) {
             console.log('Teléfono recibido:', payload);
@@ -48,7 +48,7 @@ export function setupStartCommand() {
             if (!user || !token) {
                 bot.sendMessage(
                     chatId,
-                    i18next.t('no_phone_or_document', { userName}),
+                    i18next.t('no_phone_or_document', { userName }),
                 );
                 return;
             }
@@ -63,6 +63,37 @@ export function setupStartCommand() {
                 sendPrivacyPolicy(chatId, userName);
                 return;
             }
+
+            if (token) {
+                try {
+                    const verifyResult = await documentsUseCase.verifyToken({ token });
+                    if (verifyResult.data) {
+                        const { document, signerId } = verifyResult.data;
+                        const signer = document.participants.find(p => p.uuid === signerId);
+                        const participantName = signer?.first_name ?? '';
+
+                        // Update user with document details
+                        await User.findOneAndUpdate(
+                            { phoneNumber: payload },
+                            {
+                                userId: msg.from?.id,
+                                userName,
+                                documentKey: document.metadata.s3Key,
+                                documentUrl: document.metadata.url,
+                                documentName: document.filename,
+                                participantName,
+                                token,
+                                signerId,
+                            },
+                            { upsert: true }
+                        );
+
+                    }
+                } catch (err) {
+                    console.error("Error al verificar token:", err);
+                }
+            }
+
             if (user.phoneNumber) {
                 await bot.sendMessage(chatId, i18next.t('continue_process', { userName }));
                 user = await User.findOne({ userId: msg.from?.id });
@@ -84,10 +115,41 @@ export function setupStartCommand() {
                 }
             }
             return;
-        } else if (isToken) {
-            console.log('Token recibido:', payload);
-            // ...lógica de finalización con token...
-            bot.sendMessage(chatId, i18next.t('document_signed'));
+        } else if (isSignedString) {
+            console.log('param: ', payload);
+
+            const user = await User.findOne({ userId: msg.from?.id });
+            const token = user?.token;
+
+            if (!token) {
+                await bot.sendMessage(chatId, i18next.t('document_not_found'));
+                return;
+            }
+
+            try {
+                const verifyResult = await documentsUseCase.verifyToken({ token });
+                if (verifyResult.data) {
+                    const { document } = verifyResult.data;
+                    const versions = document.metadata?.versions;
+                    const lastVersion = Array.isArray(versions) && versions.length > 0
+                        ? versions[versions.length - 1]
+                        : null;
+                    const signedUrl = lastVersion?.url
+                    const documentName = lastVersion?.filename || 'Documento firmado';
+
+                    if (signedUrl) {
+                        await bot.sendMessage(chatId, i18next.t('document_signed'));
+                        await bot.sendDocument(chatId, signedUrl, {}, { filename: documentName });
+                    } else {
+                        await bot.sendMessage(chatId, i18next.t('document_not_found'));
+                    }
+                } else {
+                    await bot.sendMessage(chatId, i18next.t('document_not_found'));
+                }
+            } catch (err) {
+                console.error("Error al verificar token para documento firmado:", err);
+                await bot.sendMessage(chatId, i18next.t('document_not_found'));
+            }
             return;
         } else {
             console.log('Parámetro desconocido recibido en /start:', payload);
@@ -147,7 +209,7 @@ export function setupStartCommand() {
                 const link = `https://dev-guest-sign.adamoservices.co/documents?data=${encodeURIComponent(userDoc.token)}`;
                 const documentName = userDoc.documentName || 'Documento';
                 await bot.sendMessage(chatId,
-                    i18next.t('document_link_message', {documentName, link}),
+                    i18next.t('document_link_message', { documentName, link }),
                     { parse_mode: 'Markdown' }
                 );
                 await bot.sendDocument(chatId, userDoc.documentUrl, {}, { filename: userDoc.documentName });
