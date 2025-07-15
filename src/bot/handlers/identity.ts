@@ -132,7 +132,7 @@ export function setupIdentityHandler() {
         // selfie
         if (user?.identityStep === "selfie") {
             if (!msg.photo) {
-                bot.sendMessage(chatId, "Por favor, sube una *selfie* (foto), no texto.", { parse_mode: "Markdown" });
+                bot.sendMessage(chatId, i18next.t("identity_step.invalid_selfie"), { parse_mode: "Markdown" });
                 return;
             }
             const photo = msg.photo[msg.photo.length - 1];
