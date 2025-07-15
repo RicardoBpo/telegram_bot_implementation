@@ -14,7 +14,7 @@
         "reject_button": "❌ Rechazar"
     },
     "identity_step": {
-        "session_closed": "Tu sesión fue cerrada por inactividad. Por favor, inicia el proceso de nuevo con /start.",
+        "session_closed": "Tu sesión fue cerrada por inactividad. Por favor, inicia el proceso de nuevo desde el link de invitación.",
         "select_country": "Primero me gustaría saber en dónde vives!:",
         "select_document_type": "Por favor, selecciona el tipo de documento que deseas verificar:",
         "upload_document_photo": "Por favor, sube una foto de tu documento de identidad.",
@@ -24,6 +24,39 @@
         "invalid_selfie": "Por favor, sube una *selfie* (foto), no texto.",
         "selfie_uploaded": "Selfie subida correctamente.",
         "identity_verified": "¡Identidad verificada! Ahora puedes firmar documentos.",
-        "country_selected": "País seleccionado: {{country}}."
+        "country_selected": "País seleccionado: {{country}}.",
+        "documents": {
+            "cc": "Cédula de Ciudadanía",
+            "ce": "Cédula de Extranjería",
+            "passport": "Pasaporte",
+            "license": "Licencia de Conducir"
+        }
+    },
+    "final": {
+        "message": "¡Proceso finalizado! Gracias por usar AdamoSign"
+    },
+    "signature_step": {
+        "session_closed": "Tu sesión fue cerrada por inactividad. Por favor, inicia el proceso de nuevo desde el link de invitación.",
+        "upload_signature_prompt": "Por favor, sube una foto de tu firma.",
+        "rejected": "Has rechazado firmar el documento 📄 {{docName}}.",
+        "signed_success": "¡Documento firmado y enviado exitosamente! 🎉",
+        "cancelled_send": "El envío del documento firmado ha sido cancelado.",
+        "signed_preview": "Este es tu documento firmado:",
+        "send_question": "¿Quieres enviarlo?",
+        "send_yes": "✅ Sí, enviar",
+        "send_no": "❌ No enviar"
+    },
+    "show_document_step": {
+        "pending_doc": "Tienes un documento pendiente por firmar",
+        "show_doc": "🔗 Mostrar documento a firmar"
+    },
+    "signed_command": {
+        "missing_token": "No se recibió el token. Por favor, asegúrate de que el enlace de firma sea correcto.",
+        "user_not_found": "Usuario no encontrado.",
+        "document_signed": "✅ ¡Documento firmado correctamente! Gracias por usar Adamo Sign."
+    },
+    "session_mannager": {
+        "session_warning": "¿Sigues ahí? Por favor responde para continuar.",        
+        "session_closed": "Hemos cerrado esta sesión por inactividad. Para continuar, inicia el proceso nuevamente."
     }
 }
